@@ -1,0 +1,47 @@
+# Newear Configuration Example
+# This file shows all available configuration options with explanations
+# Copy this file to ~/.newear/config.yaml or use: newear config create
+
+# Audio capture settings
+audio:
+  sample_rate: 16000        # Audio sample rate (Hz) - 16000 is optimal for speech
+  channels: 1               # Number of audio channels (1=mono, 2=stereo)
+  chunk_duration: 5.0       # Audio chunk length in seconds (3-10s recommended)
+  buffer_size: 4096         # Audio buffer size (power of 2)
+  device_index: null        # Audio device index (null=auto-detect, or specific number)
+
+# Transcription settings
+transcription:
+  model_size: "base"        # Whisper model: tiny, base, small, medium, large
+  language: null            # Language code (null=auto-detect, "en"=English, "es"=Spanish, etc.)
+  device: "cpu"             # Processing device: cpu, cuda, auto
+  compute_type: "int8"      # Computation precision: int8, int16, float16, float32
+  confidence_threshold: 0.7 # Minimum confidence for high-confidence classification
+
+# Output settings
+output:
+  show_timestamps: true     # Include timestamps in transcript files
+  show_confidence: false    # Show confidence scores in console (can be noisy)
+  auto_save: true          # Automatically save transcripts
+  output_dir: null         # Output directory (null=current directory)
+  default_format: "txt"    # Default output format
+  formats:                 # List of output formats to generate
+    - "txt"               # Human-readable timestamped transcript
+    - "continuous"        # Single line without timestamps
+    # - "json"            # Structured data with confidence scores
+    # - "srt"             # Subtitle format for video
+    # - "vtt"             # WebVTT format for web video
+    # - "csv"             # Spreadsheet format for analysis
+
+# Display settings
+display:
+  rich_ui: true            # Use rich terminal UI (false=simple text output)
+  max_lines: 6             # Maximum transcript lines to show in terminal
+  show_stats: true         # Show runtime statistics
+  update_interval: 0.1     # Display update frequency in seconds
+  color_scheme: "auto"     # Color scheme: auto, light, dark
+
+# Example usage:
+# 1. Save this file as ~/.newear/config.yaml
+# 2. Run: newear
+# 3. Or override settings: newear --model medium --rich-ui --formats txt,json,srt

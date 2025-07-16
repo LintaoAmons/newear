@@ -1,0 +1,31 @@
+# Minimal Newear Configuration Example
+# Fast, lightweight setup for quick transcription
+
+# Audio capture settings (minimal)
+audio:
+  chunk_duration: 3.0       # Shorter chunks for faster response
+
+# Transcription settings (fast)
+transcription:
+  model_size: "tiny"        # Fastest model
+
+# Output settings (simple)
+output:
+  show_timestamps: false    # Clean output
+  show_confidence: false    # No extra info
+  formats:
+    - "txt"               # Just basic text file
+    - "continuous"        # Single line without timestamps
+    # - "json"            # Structured data with confidence scores
+    # - "srt"             # Subtitle format for video
+    # - "vtt"             # WebVTT format for web video
+    # - "csv"             # Spreadsheet format for analysis
+
+# Display settings (simple)
+display:
+  rich_ui: true           # Simple text output
+  show_stats: false        # No extra stats
+
+# This configuration prioritizes speed over accuracy
+# Good for: quick notes, real-time demos, low-resource systems
+# Usage: newear --config config-minimal-example.yaml

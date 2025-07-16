@@ -15,8 +15,12 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from newear.audio.capture import AudioCapture
 from newear.audio.devices import AudioDevices
 from newear.output.file_writer import FileWriter
+from newear.output.display import RichTerminalDisplay, DisplayConfig
 from newear.utils.config import Config
+from newear.utils.config_file import ConfigManager
+from newear.utils.logging import get_logger, setup_logging, get_error_handler
 from newear.transcription.whisper_local import WhisperTranscriber
+from newear.transcription.file_transcriber import FileTranscriber
 
 app = typer.Typer(
     name="newear",
@@ -24,22 +28,68 @@ app = typer.Typer(
     add_completion=False,
 )
 
+# Add subcommands
+config_app = typer.Typer(help="Configuration management commands")
+app.add_typer(config_app, name="config")
+
 console = Console()
 
 
-@app.command()
+@app.callback(invoke_without_command=True)
 def main(
+    ctx: typer.Context,
     device: Optional[int] = typer.Option(None, "--device", "-d", help="Audio device index (use --list-devices to see available)"),
-    model: str = typer.Option("base", "--model", "-m", help="Whisper model size (tiny, base, small, medium, large)"),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="Whisper model size (tiny, base, small, medium, large)"),
     output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output file path for transcript (default: newear-YYYYMMDD_HHMMSS.txt)"),
-    timestamps: bool = typer.Option(False, "--timestamps", "-t", help="Include timestamps in output"),
-    show_confidence: bool = typer.Option(False, "--confidence", help="Show confidence scores in console output"),
+    timestamps: Optional[bool] = typer.Option(None, "--timestamps", "-t", help="Include timestamps in output"),
+    show_confidence: Optional[bool] = typer.Option(None, "--confidence", help="Show confidence scores in console output"),
     language: Optional[str] = typer.Option(None, "--language", "-l", help="Language code (auto-detect if not specified)"),
-    sample_rate: int = typer.Option(16000, "--sample-rate", "-s", help="Audio sample rate in Hz"),
-    chunk_duration: float = typer.Option(5.0, "--chunk-duration", "-c", help="Audio chunk duration in seconds (3-10s recommended for better accuracy)"),
+    sample_rate: Optional[int] = typer.Option(None, "--sample-rate", "-s", help="Audio sample rate in Hz"),
+    chunk_duration: Optional[float] = typer.Option(None, "--chunk-duration", "-c", help="Audio chunk duration in seconds (3-10s recommended for better accuracy)"),
     list_devices: bool = typer.Option(False, "--list-devices", help="List available audio devices and exit"),
+    config_file: Optional[Path] = typer.Option(None, "--config", help="Path to configuration file"),
+    rich_ui: Optional[bool] = typer.Option(None, "--rich-ui/--no-rich-ui", help="Enable/disable rich terminal UI"),
+    formats: Optional[str] = typer.Option(None, "--formats", help="Output formats (comma-separated: txt,json,srt,vtt,csv)"),
+    log_level: str = typer.Option("INFO", "--log-level", help="Log level (DEBUG, INFO, WARNING, ERROR)"),
 ):
     """Start real-time audio captioning."""
+    
+    # If subcommand is being called, don't run main logic
+    if ctx.invoked_subcommand is not None:
+        return
+    
+    # Load configuration first
+    config_manager = ConfigManager()
+    try:
+        config_manager.load_config(config_file)
+        
+        # Merge with CLI arguments
+        config_manager.merge_with_cli_args(
+            device=device, model=model, timestamps=timestamps,
+            show_confidence=show_confidence, language=language,
+            sample_rate=sample_rate, chunk_duration=chunk_duration
+        )
+        
+        # Override rich_ui setting only if explicitly provided
+        # If --rich-ui or --no-rich-ui is used, override config file
+        # Otherwise, use the config file setting
+        if rich_ui is not None:
+            config_manager.config.display.rich_ui = rich_ui
+        
+        # Setup logging with the final rich_ui setting
+        setup_logging(level=log_level, enable_rich=config_manager.config.display.rich_ui)
+        logger = get_logger()
+        error_handler = get_error_handler()
+        
+        logger.info("Configuration loaded and merged with CLI arguments")
+        
+    except Exception as e:
+        # Setup logging with defaults if config loading fails
+        setup_logging(level=log_level, enable_rich=rich_ui if rich_ui is not None else True)
+        logger = get_logger()
+        error_handler = get_error_handler()
+        error_handler.handle_error(e, "loading configuration")
+        # Continue with defaults
     
     # List devices if requested
     if list_devices:
@@ -51,59 +101,101 @@ def main(
     if output is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output = Path(f"newear-{timestamp}.txt")
-        console.print(f"[blue]No output file specified, using: {output}[/blue]")
+        if not config_manager.config.display.rich_ui:
+            console.print(f"[blue]No output file specified, using: {output}[/blue]")
+        logger.info(f"Using default output file: {output}")
     
-    # Initialize configuration
+    # Parse output formats
+    output_formats = ["txt", "continuous"]
+    if formats:
+        output_formats = [f.strip() for f in formats.split(",")]
+        logger.info(f"Output formats: {output_formats}")
+    
+    # Initialize configuration (keeping for backward compatibility)
     config = Config(
-        device_index=device,
-        model_size=model,
+        device_index=config_manager.config.audio.device_index,
+        model_size=config_manager.config.transcription.model_size,
         output_file=output,
-        show_timestamps=timestamps,
-        language=language,
-        sample_rate=sample_rate,
-        chunk_duration=chunk_duration,
+        show_timestamps=config_manager.config.output.show_timestamps,
+        language=config_manager.config.transcription.language,
+        sample_rate=config_manager.config.audio.sample_rate,
+        chunk_duration=config_manager.config.audio.chunk_duration,
     )
     
     # Initialize audio capture
     try:
         audio_capture = AudioCapture(config)
+        logger.info("Audio capture initialized successfully")
     except Exception as e:
-        console.print(f"[red]Error initializing audio capture: {e}[/red]")
+        error_handler.handle_error(e, "initializing audio capture", fatal=True)
         sys.exit(1)
     
     # Initialize file writer
-    file_writer = FileWriter(output, timestamps)
+    file_writer = FileWriter(output, config_manager.config.output.show_timestamps)
     
     # Initialize continuous file writer for one-liner output
     continuous_file = output.with_suffix('.continuous.txt')
     continuous_writer = FileWriter(continuous_file, show_timestamps=False)
     
+    # Initialize rich terminal display
+    display = None
+    if config_manager.config.display.rich_ui:
+        display_config = DisplayConfig(
+            max_lines=config_manager.config.display.max_lines,
+            show_timestamps=config_manager.config.output.show_timestamps,
+            show_confidence=config_manager.config.output.show_confidence,
+            show_stats=config_manager.config.display.show_stats,
+            update_interval=config_manager.config.display.update_interval
+        )
+        display = RichTerminalDisplay(display_config)
+    
     # Initialize transcriber
     try:
         transcriber = WhisperTranscriber(
-            model_size=model,
-            language=language,
-            device="cpu",  # Use CPU for better compatibility
-            compute_type="int8"  # Optimized for speed
+            model_size=config_manager.config.transcription.model_size,
+            language=config_manager.config.transcription.language,
+            device=config_manager.config.transcription.device,
+            compute_type=config_manager.config.transcription.compute_type
         )
-        console.print(f"[blue]Initializing Whisper model: {model}[/blue]")
+        if not config_manager.config.display.rich_ui:
+            console.print(f"[blue]Initializing Whisper model: {config_manager.config.transcription.model_size}[/blue]")
+        logger.info(f"Initializing Whisper model: {config_manager.config.transcription.model_size}")
     except Exception as e:
-        console.print(f"[red]Error initializing transcriber: {e}[/red]")
+        error_handler.handle_error(e, "initializing transcriber", fatal=True)
         sys.exit(1)
     
     # Start captioning
-    console.print("[green]Starting Newear audio captioning...[/green]")
-    console.print(f"[blue]Model: {model}[/blue]")
-    console.print(f"[blue]Device: {device or 'auto-detect'}[/blue]")
-    console.print(f"[blue]Sample rate: {sample_rate}Hz[/blue]")
-    console.print(f"[blue]Chunk duration: {chunk_duration}s[/blue]")
-    console.print(f"[blue]Language: {language or 'auto-detect'}[/blue]")
+    if not config_manager.config.display.rich_ui:
+        console.print("[green]Starting Newear audio captioning...[/green]")
+        console.print(f"[blue]Model: {config_manager.config.transcription.model_size}[/blue]")
+        console.print(f"[blue]Device: {config_manager.config.audio.device_index or 'auto-detect'}[/blue]")
+        console.print(f"[blue]Sample rate: {config_manager.config.audio.sample_rate}Hz[/blue]")
+        console.print(f"[blue]Chunk duration: {config_manager.config.audio.chunk_duration}s[/blue]")
+        console.print(f"[blue]Language: {config_manager.config.transcription.language or 'auto-detect'}[/blue]")
+        console.print(f"[blue]Output file: {output}[/blue]")
+        console.print(f"[blue]Continuous file: {output.with_suffix('.continuous.txt')}[/blue]")
+        console.print(f"[blue]Output formats: {', '.join(output_formats)}[/blue]")
+        console.print("[yellow]Press Ctrl+C to stop[/yellow]")
+        console.print("-" * 50)
     
-    console.print(f"[blue]Output file: {output}[/blue]")
-    console.print(f"[blue]Continuous file: {output.with_suffix('.continuous.txt')}[/blue]")
+    # Setup rich display if enabled
+    if display:
+        display.set_model_info(config_manager.config.transcription.model_size, 
+                              config_manager.config.transcription.language)
+        display.set_device_info(
+            audio_capture.device.name if audio_capture.device else "unknown",
+            config_manager.config.audio.sample_rate,
+            config_manager.config.audio.chunk_duration
+        )
+        display.set_status("Initializing...")
+        display.start()
     
-    console.print("[yellow]Press Ctrl+C to stop[/yellow]")
-    console.print("-" * 50)
+    # Log system and configuration info
+    logger.info("=== Newear Session Started ===")
+    logger.info(f"Model: {config_manager.config.transcription.model_size}")
+    logger.info(f"Language: {config_manager.config.transcription.language or 'auto-detect'}")
+    logger.info(f"Output file: {output}")
+    logger.info(f"Output formats: {output_formats}")
     
     try:
         # Open files for writing (always enabled now)
@@ -116,68 +208,272 @@ def main(
             sys.exit(1)
             
         # Start real-time transcription
-        console.print("[green]Audio capture started. Beginning transcription...[/green]")
+        if not config_manager.config.display.rich_ui:
+            console.print("[green]Audio capture started. Beginning transcription...[/green]")
+        
+        if display:
+            display.set_status("Transcribing...")
+            display.set_transcribing(True)
+            display.set_model_loading(False)
+        
+        logger.info("Starting real-time transcription")
         
         # Use the transcriber's streaming method for real-time processing
         for result in transcriber.transcribe_chunk_stream(
             audio_capture.get_audio_chunks(),
-            sample_rate=sample_rate
+            sample_rate=config_manager.config.audio.sample_rate
         ):
             if result and result.text.strip():
                 text = result.text.strip()
                 
-                # Format console output based on show_confidence flag
-                if show_confidence:
-                    confidence_str = f" (confidence: {result.confidence:.2f})" if result.confidence > 0 else ""
-                    message = f"{text}{confidence_str}"
-                    
-                    # Display with color coding based on confidence
-                    if result.confidence > 0.8:
-                        console.print(f"[green]{message}[/green]")
-                    elif result.confidence > 0.5:
-                        console.print(f"[yellow]{message}[/yellow]")
-                    else:
-                        console.print(f"[red]{message}[/red]")
-                else:
-                    # Just show the text without confidence
-                    console.print(text)
+                # Add to rich display
+                if display:
+                    display.add_transcription(result)
+                    display.update()
                 
                 # Write to timestamped file (always enabled now)
-                file_writer.write_entry(text, confidence=result.confidence)
+                try:
+                    file_writer.write_entry(text, confidence=result.confidence)
+                    continuous_writer.write_continuous(text)
+                except Exception as e:
+                    error_handler.handle_error(e, "writing to file")
                 
-                # Write to continuous file (one-liner, no line breaks)
-                continuous_writer.write_continuous(text)
+                # Log transcription
+                logger.debug(f"Transcribed: {text} (confidence: {result.confidence:.2f})")
         
     except KeyboardInterrupt:
-        console.print("\n[yellow]Stopping Newear...[/yellow]")
+        logger.info("Transcription stopped by user")
+        if not config_manager.config.display.rich_ui:
+            console.print("\n[yellow]Stopping Newear...[/yellow]")
+        
+        # Stop rich display
+        if display:
+            display.set_transcribing(False)
+            display.set_status("Stopping...")
+            display.stop()
+        
+        # Cleanup
         audio_capture.stop()
         transcriber.cleanup()
         file_writer.close_file()
         continuous_writer.close_file()
         
+        # Write additional formats
+        if "json" in output_formats or "srt" in output_formats or "vtt" in output_formats or "csv" in output_formats:
+            try:
+                file_writer.write_all_formats(output, output_formats)
+                logger.info(f"Additional formats written: {output_formats}")
+            except Exception as e:
+                error_handler.handle_error(e, "writing additional formats")
+        
+        # Show statistics
         stats = file_writer.get_stats()
-        console.print(f"[green]Written {stats['total_entries']} entries to {output}[/green]")
-        console.print(f"[green]Continuous transcript saved to {output.with_suffix('.continuous.txt')}[/green]")
+        if not config_manager.config.display.rich_ui:
+            console.print(f"[green]Written {stats['total_entries']} entries to {output}[/green]")
+            console.print(f"[green]Continuous transcript saved to {output.with_suffix('.continuous.txt')}[/green]")
         
         # Show performance stats
         perf_stats = transcriber.get_performance_stats()
         if perf_stats['total_transcriptions'] > 0:
-            console.print(f"[blue]Transcribed {perf_stats['total_transcriptions']} chunks[/blue]")
-            console.print(f"[blue]Average transcription time: {perf_stats['avg_transcription_time']:.2f}s[/blue]")
+            if not config_manager.config.display.rich_ui:
+                console.print(f"[blue]Transcribed {perf_stats['total_transcriptions']} chunks[/blue]")
+                console.print(f"[blue]Average transcription time: {perf_stats['avg_transcription_time']:.2f}s[/blue]")
+            logger.info(f"Transcription performance: {perf_stats}")
         
-        console.print("[green]Goodbye![/green]")
+        # Show rich display summary
+        if display:
+            display.print_summary()
+        
+        # Log final stats
+        logger.info("=== Session Complete ===")
+        logger.info(f"Total entries: {stats['total_entries']}")
+        logger.info(f"Total transcriptions: {perf_stats.get('total_transcriptions', 0)}")
+        
+        if not config_manager.config.display.rich_ui:
+            console.print("[green]Goodbye![/green]")
+        
     except Exception as e:
-        console.print(f"[red]Error during captioning: {e}[/red]")
+        error_handler.handle_error(e, "during transcription", fatal=True)
+        
+        # Cleanup
         audio_capture.stop()
         transcriber.cleanup()
         file_writer.close_file()
         continuous_writer.close_file()
+        
+        if display:
+            display.stop()
+        
         sys.exit(1)
+
+
+@config_app.command("show")
+def show_config():
+    """Show current configuration."""
+    config_manager = ConfigManager()
+    config_manager.load_config()
+    config_manager.print_config()
+
+
+@config_app.command("create")
+def create_config(
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output file path"),
+    format: str = typer.Option("yaml", "--format", "-f", help="Configuration format (yaml, toml)")
+):
+    """Create a default configuration file."""
+    config_manager = ConfigManager()
+    if config_manager.create_default_config(output):
+        console.print("[green]Default configuration created successfully[/green]")
+    else:
+        console.print("[red]Failed to create configuration[/red]")
+
+
+@config_app.command("template")
+def show_template():
+    """Show configuration template."""
+    config_manager = ConfigManager()
+    template = config_manager.get_config_template()
+    console.print(template)
+
+
+@app.command("transcribe")
+def transcribe_file(
+    file_path: Path = typer.Argument(..., help="Path to video or audio file to transcribe"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output file path (default: input_filename.txt)"),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="Whisper model size (tiny, base, small, medium, large)"),
+    language: Optional[str] = typer.Option(None, "--language", "-l", help="Language code (auto-detect if not specified)"),
+    formats: Optional[str] = typer.Option(None, "--formats", help="Output formats (comma-separated: txt,json,srt,vtt,csv)"),
+    config_file: Optional[Path] = typer.Option(None, "--config", help="Path to configuration file"),
+    log_level: str = typer.Option("INFO", "--log-level", help="Log level (DEBUG, INFO, WARNING, ERROR)"),
+):
+    """Transcribe a video or audio file to text."""
+    
+    # Load configuration
+    config_manager = ConfigManager()
+    try:
+        config_manager.load_config(config_file)
+        
+        # Override with CLI arguments if provided
+        if model is not None:
+            config_manager.config.transcription.model_size = model
+        if language is not None:
+            config_manager.config.transcription.language = language
+        
+        # Setup logging
+        setup_logging(level=log_level, enable_rich=True)
+        logger = get_logger()
+        error_handler = get_error_handler()
+        
+        logger.info("File transcription started")
+        
+    except Exception as e:
+        setup_logging(level=log_level, enable_rich=True)
+        logger = get_logger()
+        error_handler = get_error_handler()
+        error_handler.handle_error(e, "loading configuration")
+    
+    # Validate file path
+    if not file_path.exists():
+        console.print(f"[red]Error: File not found: {file_path}[/red]")
+        raise typer.Exit(1)
+    
+    # Set default output file if not specified
+    if output is None:
+        output = file_path.with_suffix('.txt')
+        console.print(f"[blue]Output file: {output}[/blue]")
+    
+    # Parse output formats
+    output_formats = ["txt", "continuous"]
+    if formats:
+        output_formats = [f.strip() for f in formats.split(",")]
+        logger.info(f"Output formats: {output_formats}")
+    
+    # Initialize file transcriber
+    file_transcriber = FileTranscriber(
+        model_size=config_manager.config.transcription.model_size,
+        language=config_manager.config.transcription.language,
+        device=config_manager.config.transcription.device,
+        compute_type=config_manager.config.transcription.compute_type
+    )
+    
+    # Show supported formats if unsupported file
+    try:
+        supported_formats = file_transcriber.get_supported_formats()
+    except Exception:
+        supported_formats = []
+    
+    # Initialize file writers
+    file_writer = FileWriter(output, show_timestamps=True)
+    continuous_writer = FileWriter(output.with_suffix('.continuous.txt'), show_timestamps=False)
+    
+    try:
+        # Open files for writing
+        file_writer.open_file()
+        continuous_writer.open_file()
+        
+        console.print(f"[green]Starting transcription of: {file_path.name}[/green]")
+        console.print(f"[blue]Using model: {config_manager.config.transcription.model_size}[/blue]")
+        console.print(f"[blue]Language: {config_manager.config.transcription.language or 'auto-detect'}[/blue]")
+        console.print(f"[blue]Output formats: {', '.join(output_formats)}[/blue]")
+        
+        # Process the file
+        total_entries = 0
+        for result in file_transcriber.transcribe_file(file_path):
+            if result and result.text.strip():
+                text = result.text.strip()
+                
+                # Write to files
+                file_writer.write_entry(text, confidence=result.confidence, 
+                                      start_time=result.start_time, end_time=result.end_time)
+                continuous_writer.write_continuous(text)
+                
+                total_entries += 1
+                
+                # Log progress
+                logger.debug(f"Transcribed segment: {text[:50]}... (confidence: {result.confidence:.2f})")
+        
+        console.print(f"[green]Transcription completed! {total_entries} segments processed.[/green]")
+        
+        # Write additional formats
+        if "json" in output_formats or "srt" in output_formats or "vtt" in output_formats or "csv" in output_formats:
+            try:
+                file_writer.write_all_formats(output, output_formats)
+                console.print(f"[green]Additional formats written: {output_formats}[/green]")
+            except Exception as e:
+                error_handler.handle_error(e, "writing additional formats")
+        
+        # Show statistics
+        stats = file_writer.get_stats()
+        console.print(f"[green]Output file: {output}[/green]")
+        console.print(f"[green]Continuous file: {output.with_suffix('.continuous.txt')}[/green]")
+        console.print(f"[blue]Total entries: {stats['total_entries']}[/blue]")
+        console.print(f"[blue]Total text length: {stats['total_text_length']} characters[/blue]")
+        
+        if stats['total_entries'] > 0:
+            duration = stats.get('duration_seconds', 0)
+            if duration > 0:
+                console.print(f"[blue]Duration: {duration:.1f} seconds[/blue]")
+        
+        logger.info(f"File transcription completed: {total_entries} entries")
+        
+    except Exception as e:
+        error_handler.handle_error(e, "transcribing file", fatal=True)
+        console.print(f"[red]Transcription failed: {e}[/red]")
+        if supported_formats:
+            console.print(f"[yellow]Supported formats: {', '.join(supported_formats)}[/yellow]")
+        raise typer.Exit(1)
+        
+    finally:
+        # Clean up
+        file_writer.close_file()
+        continuous_writer.close_file()
+        file_transcriber.cleanup()
 
 
 def cli():
     """Entry point for the CLI."""
     app()
+
 
 if __name__ == "__main__":
     cli()

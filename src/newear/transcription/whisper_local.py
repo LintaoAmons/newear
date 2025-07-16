@@ -4,7 +4,7 @@ import numpy as np
 import threading
 import queue
 import time
-from typing import Optional, Generator, Dict, Any, List
+from typing import Optional, Generator, Dict, Any, List, Iterator
 from dataclasses import dataclass
 
 from faster_whisper import WhisperModel
@@ -224,6 +224,60 @@ class WhisperTranscriber:
             "device": self.device,
             "compute_type": self.compute_type
         }
+    
+    def transcribe_file(self, file_path: str) -> Iterator[TranscriptionResult]:
+        """Transcribe an audio file.
+        
+        Args:
+            file_path: Path to the audio file
+            
+        Yields:
+            TranscriptionResult: Individual transcription segments
+        """
+        if not self.is_loaded:
+            if not self.load_model():
+                return
+        
+        try:
+            start_time = time.time()
+            
+            # Transcribe the entire file
+            segments, info = self.model.transcribe(
+                file_path,
+                language=self.language,
+                vad_filter=True,  # Voice activity detection
+                vad_parameters=dict(min_silence_duration_ms=500),
+                word_timestamps=True
+            )
+            
+            # Process each segment
+            for segment in segments:
+                # Calculate confidence (faster-whisper doesn't provide segment confidence)
+                # Use average word confidence if available, otherwise use a default
+                confidence = 0.8  # Default confidence for file transcription
+                
+                if hasattr(segment, 'words') and segment.words:
+                    word_confidences = [w.probability for w in segment.words if hasattr(w, 'probability')]
+                    if word_confidences:
+                        confidence = sum(word_confidences) / len(word_confidences)
+                
+                # Create result
+                result = TranscriptionResult(
+                    text=segment.text,
+                    confidence=confidence,
+                    start_time=segment.start,
+                    end_time=segment.end,
+                    language=info.language if hasattr(info, 'language') else self.language
+                )
+                
+                # Track performance
+                self.transcription_times.append(time.time() - start_time)
+                
+                yield result
+                
+        except Exception as e:
+            console.print(f"[red]Error transcribing file: {e}[/red]")
+            return
     
     def cleanup(self):
         """Clean up resources."""

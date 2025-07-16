@@ -31,3 +31,5 @@ htmlcov/
 
 # Other
 *.log
+*.txt
+test-sample.mp4

@@ -1,0 +1,45 @@
+# Advanced Newear Configuration Example
+# High-accuracy setup for professional transcription
+
+# Audio capture settings (optimized for quality)
+audio:
+  sample_rate: 16000        # Standard for speech recognition
+  channels: 1               # Mono for better speech recognition
+  chunk_duration: 8.0       # Longer chunks for better accuracy
+  buffer_size: 8192         # Larger buffer for stability
+  device_index: null        # Auto-detect best device
+
+# Transcription settings (high accuracy)
+transcription:
+  model_size: "medium"      # Larger model for better accuracy
+  language: "en"            # Specify language if known (faster processing)
+  device: "auto"            # Use GPU if available, fallback to CPU
+  compute_type: "float16"   # Higher precision for better quality
+  confidence_threshold: 0.8 # Higher threshold for high-confidence
+
+# Output settings (comprehensive)
+output:
+  show_timestamps: true     # Always include timestamps
+  show_confidence: false    # Keep console clean
+  auto_save: true          # Always save transcripts
+  output_dir: "~/Documents/transcripts"  # Organized output location
+  default_format: "txt"    # Primary format
+  formats:                 # Generate multiple formats
+    - "txt"               # Main transcript
+    - "continuous"        # For processing
+    - "json"              # With confidence data
+    - "srt"               # For video subtitles
+    - "vtt"               # For web video
+    - "csv"               # For analysis
+
+# Display settings (professional)
+display:
+  rich_ui: true            # Full rich interface
+  max_lines: 8             # Show more context
+  show_stats: true         # Performance monitoring
+  update_interval: 0.05    # Smoother updates (20 FPS)
+  color_scheme: "auto"     # Adaptive colors
+
+# This configuration prioritizes accuracy over speed
+# Suitable for: meetings, interviews, lectures, professional transcription
+# Usage: newear --config config-advanced-example.yaml

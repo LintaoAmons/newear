@@ -81,8 +81,6 @@ newear/
 ### Phase 3: Polish
 1. Add rich terminal UI with live updates
 2. Implement configuration file support
-3. Add error handling and logging
-4. Create installation scripts for audio drivers
 
 ## Key Features
 

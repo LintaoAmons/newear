@@ -1,0 +1,36 @@
+# Newear Configuration Example (TOML format)
+# Alternative format to YAML - same functionality
+
+[audio]
+sample_rate = 16000
+channels = 1
+chunk_duration = 5.0
+buffer_size = 4096
+device_index = null  # null means auto-detect
+
+[transcription]
+model_size = "base"
+language = null  # null means auto-detect
+device = "cpu"
+compute_type = "int8"
+confidence_threshold = 0.7
+
+[output]
+show_timestamps = true
+show_confidence = false
+auto_save = true
+output_dir = null  # null means current directory
+default_format = "txt"
+formats = ["txt", "continuous"]
+
+[display]
+rich_ui = true
+max_lines = 6
+show_stats = true
+update_interval = 0.1
+color_scheme = "auto"
+
+# Usage: 
+# 1. Save as ~/.newear/config.toml
+# 2. Run: newear
+# 3. Or: newear --config config-example.toml
