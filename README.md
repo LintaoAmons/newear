@@ -95,7 +95,7 @@ You should see:
 ### Basic Usage
 
 ```bash
-# Start live captioning
+# Start live captioning (uses 'base' model by default)
 newear
 
 # Use specific model size
@@ -109,6 +109,131 @@ newear --output transcript.txt
 # Show timestamps
 newear --timestamps
 ```
+
+### Model Download
+
+**Models are downloaded automatically on first use** - no manual setup required!
+
+```bash
+# First time running with 'base' model
+newear --model base --output transcript.txt
+```
+
+**What happens:**
+1. faster-whisper checks if the model exists locally
+2. If not found, it automatically downloads from Hugging Face
+3. Model is cached for future use
+4. Transcription begins once download completes
+
+**Download sizes and times:**
+| Model | Size | Download Time | Performance | Use Case |
+|-------|------|---------------|-------------|----------|
+| tiny | 39MB | ~10 seconds | ~32x realtime | Testing, very fast |
+| base | 74MB | ~20 seconds | ~16x realtime | General use (recommended) |
+| small | 244MB | ~1 minute | ~6x realtime | Higher accuracy |
+| medium | 769MB | ~3 minutes | ~2x realtime | Best accuracy (English) |
+| large | 1550MB | ~6 minutes | ~1x realtime | Maximum accuracy |
+
+**First run vs subsequent runs:**
+```bash
+# First run - downloads model (one-time)
+newear --model tiny --output test.txt
+# Loading Whisper model: tiny
+# Downloading model... (downloads 39MB)
+# Model loaded successfully
+
+# Second run - uses cached model (instant)
+newear --model tiny --output test2.txt
+# Loading Whisper model: tiny
+# Model loaded successfully (instant)
+```
+
+**Requirements:**
+- **First use**: Internet connection required for download
+- **Subsequent uses**: Works offline with cached models
+- **Storage**: Models cached in `~/.cache/huggingface/hub/`
+
+### Manual Model Download (Optional)
+
+If you prefer to download models manually or work in offline environments:
+
+#### Step 1: Install huggingface-hub
+```bash
+pip install huggingface-hub
+```
+
+#### Step 2: Download Models Manually
+```bash
+# Download specific models
+huggingface-cli download Systran/faster-whisper-tiny
+huggingface-cli download Systran/faster-whisper-base
+huggingface-cli download Systran/faster-whisper-small
+huggingface-cli download Systran/faster-whisper-medium
+huggingface-cli download Systran/faster-whisper-large-v2
+
+# Or download all models with a script
+python -c "
+from huggingface_hub import snapshot_download
+models = ['tiny', 'base', 'small', 'medium', 'large-v2']
+for model in models:
+    print(f'Downloading {model}...')
+    snapshot_download(repo_id=f'Systran/faster-whisper-{model}')
+    print(f'✅ {model} downloaded')
+"
+```
+
+#### Step 3: Use Downloaded Models
+```bash
+# Models are automatically used from cache
+newear --model base --output transcript.txt
+
+# Or force offline mode (no internet check)
+export HF_HUB_OFFLINE=1
+newear --model base --output transcript.txt
+```
+
+#### Custom Cache Location
+```bash
+# Set custom download directory
+export HF_HOME=/path/to/your/models
+export HUGGINGFACE_HUB_CACHE=/path/to/your/models
+
+# Download to custom location
+huggingface-cli download Systran/faster-whisper-base
+
+# Use from custom location
+newear --model base
+```
+
+#### Verify Downloaded Models
+```bash
+# Check what models are cached
+ls -la ~/.cache/huggingface/hub/
+
+# Check cache size
+du -sh ~/.cache/huggingface/hub/
+
+# List downloaded models
+python -c "
+import os
+from pathlib import Path
+cache_dir = Path.home() / '.cache' / 'huggingface' / 'hub'
+models = [d.name for d in cache_dir.iterdir() if d.name.startswith('models--Systran--faster-whisper')]
+print('Downloaded models:')
+for model in sorted(models):
+    size = sum(f.stat().st_size for f in (cache_dir / model).rglob('*') if f.is_file())
+    print(f'  {model.split(\"--\")[-1]}: {size / 1024 / 1024:.1f} MB')
+"
+```
+
+#### Completely Offline Usage
+```bash
+# After manual download, work completely offline
+export HF_HUB_OFFLINE=1
+newear --model base --output transcript.txt
+```
+
+This will use only locally cached models without any internet connection.
 
 ### Advanced Usage
 

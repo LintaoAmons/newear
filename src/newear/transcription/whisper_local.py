@@ -39,7 +39,8 @@ class WhisperTranscriber:
     """Real-time transcription using faster-whisper."""
     
     def __init__(self, model_size: str = "base", language: Optional[str] = None, 
-                 device: str = "cpu", compute_type: str = "int8"):
+                 device: str = "cpu", compute_type: str = "int8", 
+                 download_root: Optional[str] = None, local_files_only: bool = False):
         """Initialize the transcriber.
         
         Args:
@@ -47,11 +48,15 @@ class WhisperTranscriber:
             language: Target language code (None for auto-detection)
             device: Device to use ("cpu" or "cuda")
             compute_type: Compute type for inference ("int8", "float16", "float32")
+            download_root: Custom download directory (None for default)
+            local_files_only: Use only local files, no download
         """
         self.model_size = model_size
         self.language = language
         self.device = device
         self.compute_type = compute_type
+        self.download_root = download_root
+        self.local_files_only = local_files_only
         
         self.model_manager = ModelManager()
         self.model: Optional[WhisperModel] = None
@@ -77,7 +82,9 @@ class WhisperTranscriber:
             self.model = WhisperModel(
                 self.model_size,
                 device=self.device,
-                compute_type=self.compute_type
+                compute_type=self.compute_type,
+                download_root=self.download_root,
+                local_files_only=self.local_files_only
             )
             
             self.is_loaded = True

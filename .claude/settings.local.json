@@ -9,7 +9,11 @@
       "Bash(newear:*)",
       "Bash(timeout:*)",
       "Bash(gtimeout:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(git commit:*)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }
