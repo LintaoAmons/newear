@@ -33,3 +33,4 @@ htmlcov/
 *.log
 *.txt
 test-sample.mp4
+models/faster-whisper-tiny

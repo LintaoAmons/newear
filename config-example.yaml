@@ -41,7 +41,20 @@ display:
   update_interval: 0.1     # Display update frequency in seconds
   color_scheme: "auto"     # Color scheme: auto, light, dark
 
+# Custom model settings
+models:
+  model_dir: null          # Default directory for custom models (null=use default)
+  models:                  # Custom model definitions (name: path)
+    # Built-in models (tiny, base, small, medium, large) are always available
+    # Add your custom models here:
+    # my-model: "/path/to/custom/model"
+    # finetuned: "~/models/my-finetuned-whisper"
+    # large-v3: "openai/whisper-large-v3"
+    # local-large: "./models/whisper-large-v2"
+
 # Example usage:
 # 1. Save this file as ~/.newear/config.yaml
 # 2. Run: newear
 # 3. Or override settings: newear --model medium --rich-ui --formats txt,json,srt
+# 4. Use custom models: newear --model my-model --output transcript.txt
+# 5. Use file paths directly: newear --model ./my-whisper-model --output transcript.txt

@@ -39,7 +39,7 @@ console = Console()
 def main(
     ctx: typer.Context,
     device: Optional[int] = typer.Option(None, "--device", "-d", help="Audio device index (use --list-devices to see available)"),
-    model: Optional[str] = typer.Option(None, "--model", "-m", help="Whisper model size (tiny, base, small, medium, large)"),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="Whisper model size/name or path (tiny, base, small, medium, large, custom name, or file path)"),
     output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output file path for transcript (default: newear-YYYYMMDD_HHMMSS.txt)"),
     timestamps: Optional[bool] = typer.Option(None, "--timestamps", "-t", help="Include timestamps in output"),
     show_confidence: Optional[bool] = typer.Option(None, "--confidence", help="Show confidence scores in console output"),
@@ -47,6 +47,7 @@ def main(
     sample_rate: Optional[int] = typer.Option(None, "--sample-rate", "-s", help="Audio sample rate in Hz"),
     chunk_duration: Optional[float] = typer.Option(None, "--chunk-duration", "-c", help="Audio chunk duration in seconds (3-10s recommended for better accuracy)"),
     list_devices: bool = typer.Option(False, "--list-devices", help="List available audio devices and exit"),
+    list_models: bool = typer.Option(False, "--list-models", help="List available models and exit"),
     config_file: Optional[Path] = typer.Option(None, "--config", help="Path to configuration file"),
     rich_ui: Optional[bool] = typer.Option(None, "--rich-ui/--no-rich-ui", help="Enable/disable rich terminal UI"),
     formats: Optional[str] = typer.Option(None, "--formats", help="Output formats (comma-separated: txt,json,srt,vtt,csv)"),
@@ -95,6 +96,13 @@ def main(
     if list_devices:
         devices = AudioDevices()
         devices.list_devices()
+        return
+    
+    # List models if requested
+    if list_models:
+        from newear.transcription.models import ModelManager
+        model_manager = ModelManager(custom_models=config_manager.config.models.models)
+        model_manager.print_model_info()
         return
     
     # Set default output file if not specified
@@ -155,7 +163,8 @@ def main(
             model_size=config_manager.config.transcription.model_size,
             language=config_manager.config.transcription.language,
             device=config_manager.config.transcription.device,
-            compute_type=config_manager.config.transcription.compute_type
+            compute_type=config_manager.config.transcription.compute_type,
+            custom_models=config_manager.config.models.models
         )
         if not config_manager.config.display.rich_ui:
             console.print(f"[blue]Initializing Whisper model: {config_manager.config.transcription.model_size}[/blue]")
@@ -340,7 +349,7 @@ def show_template():
 def transcribe_file(
     file_path: Path = typer.Argument(..., help="Path to video or audio file to transcribe"),
     output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output file path (default: input_filename.txt)"),
-    model: Optional[str] = typer.Option(None, "--model", "-m", help="Whisper model size (tiny, base, small, medium, large)"),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="Whisper model size/name or path (tiny, base, small, medium, large, custom name, or file path)"),
     language: Optional[str] = typer.Option(None, "--language", "-l", help="Language code (auto-detect if not specified)"),
     formats: Optional[str] = typer.Option(None, "--formats", help="Output formats (comma-separated: txt,json,srt,vtt,csv)"),
     config_file: Optional[Path] = typer.Option(None, "--config", help="Path to configuration file"),
@@ -393,7 +402,8 @@ def transcribe_file(
         model_size=config_manager.config.transcription.model_size,
         language=config_manager.config.transcription.language,
         device=config_manager.config.transcription.device,
-        compute_type=config_manager.config.transcription.compute_type
+        compute_type=config_manager.config.transcription.compute_type,
+        custom_models=config_manager.config.models.models
     )
     
     # Show supported formats if unsupported file

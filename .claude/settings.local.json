@@ -13,7 +13,8 @@
       "Bash(find:*)",
       "Bash(ls:*)",
       "Bash(git commit:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(pip install:*)"
     ],
     "deny": []
   }

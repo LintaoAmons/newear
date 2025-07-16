@@ -26,6 +26,13 @@ display:
   rich_ui: true           # Simple text output
   show_stats: false        # No extra stats
 
+# Custom model settings (minimal)
+models:
+  models:                  # Only essential models
+    # fast: "tiny"         # Alias for built-in tiny model
+    # quick: "./models/quick-whisper"  # Local fast model
+
 # This configuration prioritizes speed over accuracy
 # Good for: quick notes, real-time demos, low-resource systems
 # Usage: newear --config config-minimal-example.yaml
+# Quick model usage: newear --model fast --output quick-notes.txt

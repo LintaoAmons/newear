@@ -470,6 +470,251 @@ newear --model base --output transcript.txt
 
 This will use only locally cached models without any internet connection.
 
+### Custom Models and Advanced Model Selection
+
+Newear supports using custom models beyond the built-in options. You can use your own fine-tuned models, different model versions, or models stored in custom locations.
+
+#### Quick Start with Custom Models
+
+```bash
+# Use a custom model by file path
+newear --model ./models/my-custom-whisper --output transcript.txt
+
+# Use a custom model by absolute path
+newear --model ~/models/whisper-large-v3 --output transcript.txt
+
+# Use a custom model defined in configuration
+newear --model my-finetuned-model --output transcript.txt
+```
+
+#### Model Selection Methods
+
+**1. Built-in Models (Default)**
+```bash
+# Standard built-in models
+newear --model tiny     # 39MB, fastest
+newear --model base     # 74MB, balanced (recommended)
+newear --model small    # 244MB, higher accuracy
+newear --model medium   # 769MB, best accuracy (English)
+newear --model large    # 1550MB, maximum accuracy
+```
+
+**2. Direct File/Directory Paths**
+```bash
+# Relative path
+newear --model ./models/faster-whisper-tiny
+
+# Absolute path
+newear --model /path/to/my/custom/model
+
+# Home directory path
+newear --model ~/models/whisper-large-v3
+```
+
+**3. Named Custom Models (Configuration-Based)**
+```bash
+# First, define in configuration file
+# Then use by name
+newear --model my-custom-model --output transcript.txt
+```
+
+#### Setting Up Custom Models
+
+**Method 1: Configuration File**
+
+Create or edit your configuration file (e.g., `~/.newear/config.yaml`):
+
+```yaml
+models:
+  models:
+    # Custom model definitions (name: path)
+    my-model: "/path/to/custom/model"
+    finetuned: "~/models/my-finetuned-whisper"
+    large-v3: "openai/whisper-large-v3"
+    medical-whisper: "~/models/medical-specialized"
+    
+    # Company-specific models
+    meetings: "/shared/models/company-meetings"
+    technical: "~/models/technical-whisper"
+```
+
+**Method 2: Direct Path Usage**
+
+No configuration needed - just use the path directly:
+
+```bash
+# Works immediately
+newear --model ./downloaded-model --output transcript.txt
+```
+
+#### Downloading Custom Models
+
+**Example: Download a specific model version**
+
+```bash
+# Install huggingface-hub if not already installed
+pip install huggingface-hub
+
+# Download a specific model to local directory
+huggingface-cli download Systran/faster-whisper-large-v2 --local-dir ./models/whisper-large-v2
+
+# Use the downloaded model
+newear --model ./models/whisper-large-v2 --output transcript.txt
+```
+
+**Example: Download and setup in configuration**
+
+```bash
+# Create models directory
+mkdir -p ~/.newear/models
+
+# Download model
+huggingface-cli download Systran/faster-whisper-medium --local-dir ~/.newear/models/medium
+
+# Add to configuration
+cat >> ~/.newear/config.yaml << 'EOF'
+models:
+  models:
+    medium-local: "~/.newear/models/medium"
+EOF
+
+# Use by name
+newear --model medium-local --output transcript.txt
+```
+
+#### Model Validation and Listing
+
+**List all available models:**
+```bash
+newear --list-models
+```
+
+This shows both built-in models and your custom models (You have to put your custom models into the config):
+```
+Built-in Models:
+tiny           39MB  Fastest, lowest accuracy
+base           74MB  Balanced speed and accuracy
+small         244MB  Good accuracy, moderate speed
+medium        769MB  High accuracy, slower
+large        1550MB  Highest accuracy, slowest
+
+Custom Models:
+my-model      Custom  Custom model
+              Path: /path/to/custom/model
+              Use case: User-defined model
+
+finetuned     Custom  Custom model
+              Path: ~/models/my-finetuned-whisper
+              Use case: User-defined model
+```
+
+**Model validation:**
+If you specify an invalid model, you'll get helpful error messages:
+```bash
+newear --model ./nonexistent-model --output test.txt
+# Error: Model file/directory does not exist: /path/to/nonexistent-model
+# Use 'newear --list-models' to see available models
+```
+
+#### Real-World Examples
+
+**Research/Development Setup:**
+```yaml
+models:
+  models:
+    # Different model versions for comparison
+    whisper-v1: "~/models/whisper-large-v1"
+    whisper-v2: "~/models/whisper-large-v2"
+    whisper-v3: "~/models/whisper-large-v3"
+    
+    # Fine-tuned for specific domains
+    medical: "~/models/medical-whisper"
+    legal: "~/models/legal-whisper"
+    technical: "~/models/technical-whisper"
+```
+
+**Professional/Corporate Setup:**
+```yaml
+models:
+  model_dir: "/shared/company-models"
+  models:
+    # Company-specific models
+    meetings: "/shared/company-models/meeting-optimized"
+    presentations: "/shared/company-models/presentation-whisper"
+    interviews: "/shared/company-models/interview-specialized"
+    
+    # Department-specific models
+    engineering: "/shared/company-models/engineering-terms"
+    marketing: "/shared/company-models/marketing-whisper"
+```
+
+**Usage with different models:**
+```bash
+# Test different models on the same file
+newear transcribe --model whisper-v2 --output v2-result.txt meeting.mp4
+newear transcribe --model whisper-v3 --output v3-result.txt meeting.mp4
+
+# Use specialized model for technical content
+newear transcribe --model technical --output tech-transcript.txt lecture.mp4
+
+# Use company meeting model for better accuracy
+newear --model meetings --output meeting-notes.txt
+```
+
+#### Model Compatibility
+
+**Supported Model Formats:**
+- **faster-whisper models** (recommended)
+- **OpenAI Whisper models** (converted to faster-whisper format)
+- **Custom fine-tuned models** (faster-whisper compatible)
+- **HuggingFace models** (faster-whisper format)
+
+**Model Directory Structure:**
+Your custom model directory should contain:
+```
+my-custom-model/
+├── config.json
+├── model.bin
+├── tokenizer.json
+└── vocabulary.txt
+```
+
+#### Troubleshooting Custom Models
+
+**Common issues and solutions:**
+
+1. **Model not found:**
+   ```bash
+   # Check if path exists
+   ls -la ~/models/my-model
+   
+   # Use absolute path
+   newear --model "$(realpath ~/models/my-model)"
+   ```
+
+2. **Permission issues:**
+   ```bash
+   # Check permissions
+   ls -la ~/models/my-model
+   chmod -R 755 ~/models/my-model
+   ```
+
+3. **Model format issues:**
+   ```bash
+   # Verify model files exist
+   ls ~/models/my-model/
+   # Should contain: config.json, model.bin, tokenizer.json, vocabulary.txt
+   ```
+
+4. **Configuration not loaded:**
+   ```bash
+   # Check which config is being used
+   newear config show
+   
+   # Use specific config file
+   newear --config ~/.newear/config.yaml --model my-model
+   ```
+
 ### Optimizing Chunk Duration for Better Accuracy
 
 **Chunk duration significantly affects transcription confidence and accuracy:**
@@ -970,110 +1215,6 @@ Audio Capture → Chunking → Whisper Model → Text Output → File/Display
 - **small**: 244MB, ~6x realtime on M1
 - **medium**: 769MB, ~2x realtime on M1
 - **large**: 1550MB, ~1x realtime on M1
-
-## Development
-
-### Testing Phase 1 Implementation
-
-The Phase 1 implementation includes:
-
-- ✅ pyproject.toml with setuptools configuration
-- ✅ CLI structure with Typer
-- ✅ Audio capture with sounddevice
-- ✅ File output with timestamps
-
-#### Prerequisites for Testing
-
-```bash
-# Activate virtual environment
-uv venv
-source .venv/bin/activate
-
-# Install in development mode
-uv pip install -e .
-
-# Install dev dependencies
-uv pip install -e ".[dev]"
-```
-
-#### Phase 1 Testing Steps
-
-1. **Test CLI Installation**
-
-   ```bash
-   newear --help
-   ```
-
-   Expected: Help text showing all available options
-
-2. **Test Audio Device Detection**
-
-   ```bash
-   newear --list-devices
-   ```
-
-   Expected: List of audio devices including BlackHole if installed
-
-3. **Test Basic Audio Capture**
-
-   ```bash
-   python test_audio.py
-   ```
-
-   Expected: Device list, audio capture test with RMS levels > 0 when audio plays
-
-4. **Test File Output**
-
-   ```bash
-   newear --output test_output.txt
-   # Play some audio, then stop with Ctrl+C
-   ```
-
-   Expected: Creates test_output.txt with timestamped entries
-
-5. **Test CLI Options**
-   ```bash
-   newear --timestamps --chunk-duration 1.0 --sample-rate 16000
-   ```
-   Expected: Runs with specified settings, shows configuration
-
-#### Manual Testing Checklist
-
-- [ ] CLI command installs correctly (`newear --help`)
-- [ ] Audio devices are detected (`--list-devices`)
-- [ ] Audio capture works with RMS levels > 0 (`test_audio.py`)
-- [ ] File output creates timestamped entries (`--output file.txt`)
-- [ ] Different audio settings work (`--sample-rate`, `--chunk-duration`)
-- [ ] Error handling works (invalid device, no audio)
-- [ ] Graceful shutdown with Ctrl+C
-
-### Running Tests
-
-```bash
-# Install dev dependencies
-uv pip install -e ".[dev]"
-
-# Run tests
-pytest tests/
-```
-
-### Code Formatting
-
-```bash
-# Install dev dependencies if not already installed
-uv pip install -e ".[dev]"
-
-# Format code
-black src/
-isort src/
-```
-
-### Building
-
-```bash
-uv pip install build
-python -m build
-```
 
 ## Contributing
 

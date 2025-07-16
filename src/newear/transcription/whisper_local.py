@@ -40,16 +40,18 @@ class WhisperTranscriber:
     
     def __init__(self, model_size: str = "base", language: Optional[str] = None, 
                  device: str = "cpu", compute_type: str = "int8", 
-                 download_root: Optional[str] = None, local_files_only: bool = False):
+                 download_root: Optional[str] = None, local_files_only: bool = False,
+                 custom_models: Optional[Dict[str, str]] = None):
         """Initialize the transcriber.
         
         Args:
-            model_size: Whisper model size (tiny, base, small, medium, large)
+            model_size: Whisper model size/name or path (tiny, base, small, medium, large, custom name, or file path)
             language: Target language code (None for auto-detection)
             device: Device to use ("cpu" or "cuda")
             compute_type: Compute type for inference ("int8", "float16", "float32")
             download_root: Custom download directory (None for default)
             local_files_only: Use only local files, no download
+            custom_models: Dict mapping custom model names to paths
         """
         self.model_size = model_size
         self.language = language
@@ -58,7 +60,7 @@ class WhisperTranscriber:
         self.download_root = download_root
         self.local_files_only = local_files_only
         
-        self.model_manager = ModelManager()
+        self.model_manager = ModelManager(custom_models=custom_models)
         self.model: Optional[WhisperModel] = None
         self.is_loaded = False
         
@@ -73,14 +75,19 @@ class WhisperTranscriber:
         try:
             console.print(f"[blue]Loading Whisper model: {self.model_size}[/blue]")
             
-            # Validate model name
-            if not self.model_manager.validate_model_name(self.model_size):
-                console.print(f"[red]Invalid model name: {self.model_size}[/red]")
+            # Validate model name/path
+            validation_error = self.model_manager.get_model_validation_error(self.model_size)
+            if validation_error:
+                console.print(f"[red]Model validation error: {validation_error}[/red]")
+                console.print(f"[yellow]Use 'newear --list-models' to see available models[/yellow]")
                 return False
+            
+            # Get resolved model path
+            model_path = self.model_manager.get_model_path(self.model_size)
             
             # Load model with faster-whisper
             self.model = WhisperModel(
-                self.model_size,
+                model_path,
                 device=self.device,
                 compute_type=self.compute_type,
                 download_root=self.download_root,
@@ -93,12 +100,21 @@ class WhisperTranscriber:
             # Print model info
             model_info = self.model_manager.get_model_info(self.model_size)
             if model_info:
-                console.print(f"[dim]Model size: {model_info.size_mb}MB, {model_info.description}[/dim]")
+                if model_info.is_custom:
+                    console.print(f"[dim]Custom model: {model_info.description}[/dim]")
+                    console.print(f"[dim]Path: {model_info.path}[/dim]")
+                else:
+                    console.print(f"[dim]Model size: {model_info.size_mb}MB, {model_info.description}[/dim]")
             
             return True
             
         except Exception as e:
-            console.print(f"[red]Failed to load model: {e}[/red]")
+            console.print(f"[red]Failed to load model '{self.model_size}': {e}[/red]")
+            # Provide helpful error message for common issues
+            if "No such file or directory" in str(e):
+                console.print(f"[yellow]Tip: Check if the model path exists or if it's a valid model name[/yellow]")
+            elif "Invalid model" in str(e):
+                console.print(f"[yellow]Tip: Use 'newear --list-models' to see available models[/yellow]")
             return False
     
     def transcribe_audio(self, audio_data: np.ndarray, 
@@ -217,10 +233,14 @@ class WhisperTranscriber:
         
         avg_time = sum(self.transcription_times) / len(self.transcription_times)
         
+        model_info = self.model_manager.get_model_info(self.model_size)
+        is_custom = model_info.is_custom if model_info else False
+        
         return {
             "avg_transcription_time": avg_time,
             "total_transcriptions": len(self.transcription_times),
             "model_size": self.model_size,
+            "is_custom_model": is_custom,
             "device": self.device,
             "compute_type": self.compute_type
         }

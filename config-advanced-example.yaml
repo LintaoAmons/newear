@@ -40,6 +40,24 @@ display:
   update_interval: 0.05    # Smoother updates (20 FPS)
   color_scheme: "auto"     # Adaptive colors
 
+# Custom model settings (professional use)
+models:
+  model_dir: "~/models/whisper"  # Centralized model storage
+  models:                        # Professional model collection
+    # High-accuracy models
+    large-v3: "openai/whisper-large-v3"
+    medium-en: "openai/whisper-medium.en"
+    
+    # Specialized models
+    # medical: "~/models/medical-whisper"
+    # legal: "~/models/legal-whisper"
+    # technical: "~/models/technical-whisper"
+    
+    # Custom fine-tuned models
+    # company-meetings: "~/models/company-finetuned"
+    # interview-model: "/shared/models/interview-optimized"
+
 # This configuration prioritizes accuracy over speed
 # Suitable for: meetings, interviews, lectures, professional transcription
 # Usage: newear --config config-advanced-example.yaml
+# Custom model usage: newear --model large-v3 --output professional-transcript.txt

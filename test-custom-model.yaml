@@ -1,0 +1,14 @@
+# Test configuration for custom model
+transcription:
+  model_size: "custom-tiny"  # Use our custom model
+  
+models:
+  models:
+    custom-tiny: "./models/faster-whisper-tiny"
+    local-tiny: "./models/faster-whisper-tiny"
+    
+output:
+  show_timestamps: true
+  
+display:
+  rich_ui: true

@@ -54,12 +54,20 @@ class DisplayConfig:
 
 
 @dataclass
+class ModelConfig:
+    """Custom model configuration settings."""
+    models: Dict[str, str] = field(default_factory=dict)  # name -> path mapping
+    model_dir: Optional[str] = None  # Default directory for models
+
+
+@dataclass
 class NewearConfig:
     """Complete newear configuration."""
     audio: AudioConfig = field(default_factory=AudioConfig)
     transcription: TranscriptionConfig = field(default_factory=TranscriptionConfig)
     output: OutputConfig = field(default_factory=OutputConfig)
     display: DisplayConfig = field(default_factory=DisplayConfig)
+    models: ModelConfig = field(default_factory=ModelConfig)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -72,7 +80,8 @@ class NewearConfig:
             audio=AudioConfig(**data.get('audio', {})),
             transcription=TranscriptionConfig(**data.get('transcription', {})),
             output=OutputConfig(**data.get('output', {})),
-            display=DisplayConfig(**data.get('display', {}))
+            display=DisplayConfig(**data.get('display', {})),
+            models=ModelConfig(**data.get('models', {}))
         )
 
 
@@ -210,6 +219,14 @@ display:
   show_stats: true         # Show statistics
   update_interval: 0.1     # Display update interval in seconds
   color_scheme: "auto"     # Color scheme (auto, light, dark)
+
+# Custom model settings
+models:
+  model_dir: null          # Default directory for custom models
+  models:                  # Custom model definitions
+    # my-model: "/path/to/custom/model"
+    # finetuned: "~/models/my-finetuned-whisper"
+    # large-v3: "openai/whisper-large-v3"
 """
         return template
     
@@ -252,6 +269,16 @@ display:
         display_tree.add(f"Show Stats: {self.config.display.show_stats}")
         display_tree.add(f"Update Interval: {self.config.display.update_interval}s")
         display_tree.add(f"Color Scheme: {self.config.display.color_scheme}")
+        
+        # Models section
+        models_tree = tree.add("🤖 Models")
+        models_tree.add(f"Model Directory: {self.config.models.model_dir or 'default'}")
+        if self.config.models.models:
+            custom_models_tree = models_tree.add("Custom Models")
+            for name, path in self.config.models.models.items():
+                custom_models_tree.add(f"{name}: {path}")
+        else:
+            models_tree.add("No custom models configured")
         
         console.print(tree)
     

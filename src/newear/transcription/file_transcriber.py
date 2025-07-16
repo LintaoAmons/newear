@@ -4,7 +4,7 @@ import os
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Optional, List, Iterator
+from typing import Optional, List, Iterator, Dict
 import time
 
 from rich.console import Console
@@ -24,12 +24,14 @@ class FileTranscriber:
     SUPPORTED_VIDEO_FORMATS = {'.mp4', '.avi', '.mov', '.mkv', '.webm', '.m4v'}
     
     def __init__(self, model_size: str = "base", language: Optional[str] = None, 
-                 device: str = "cpu", compute_type: str = "int8"):
+                 device: str = "cpu", compute_type: str = "int8", 
+                 custom_models: Optional[Dict[str, str]] = None):
         """Initialize file transcriber."""
         self.model_size = model_size
         self.language = language
         self.device = device
         self.compute_type = compute_type
+        self.custom_models = custom_models
         self.transcriber = None
         
     def _initialize_transcriber(self):
@@ -40,7 +42,8 @@ class FileTranscriber:
                 model_size=self.model_size,
                 language=self.language,
                 device=self.device,
-                compute_type=self.compute_type
+                compute_type=self.compute_type,
+                custom_models=self.custom_models
             )
             console.print("[green]Model loaded successfully[/green]")
     
