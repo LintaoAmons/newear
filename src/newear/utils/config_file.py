@@ -47,11 +47,17 @@ class AudioConfig:
 @dataclass
 class TranscriptionConfig:
     """Transcription configuration settings."""
+    backend: str = "whisper"  # "whisper" or "remote"
     model_size: str = "base"
     language: Optional[str] = None
     device: str = "cpu"
     compute_type: str = "int8"
     confidence_threshold: float = 0.7
+    # Remote backend settings
+    remote_host: str = "localhost"
+    remote_port: int = 8765
+    remote_protocol: str = "http"  # "http" or "websocket"
+    remote_timeout: float = 30.0
 
 
 @dataclass
@@ -239,11 +245,17 @@ audio:
 
 # Transcription settings
 transcription:
+  backend: "whisper"        # Backend: "whisper" (local) or "remote" (remote server)
   model_size: "base"        # Whisper model size (tiny, base, small, medium, large)
   language: null            # Language code (null for auto-detect)
-  device: "cpu"             # Processing device (cpu, cuda)
-  compute_type: "int8"      # Compute type (int8, float16, float32)
+  device: "cpu"             # Processing device (cpu, cuda) - for local backend only
+  compute_type: "int8"      # Compute type (int8, float16, float32) - for local backend only
   confidence_threshold: 0.7 # Confidence threshold for high-confidence chunks
+  # Remote backend settings (when backend: "remote")
+  remote_host: "localhost"  # Remote server host
+  remote_port: 8765         # Remote server port
+  remote_protocol: "http"   # Protocol: "http" or "websocket"
+  remote_timeout: 30.0      # Request timeout in seconds
 
 # Output settings
 output:
@@ -344,11 +356,20 @@ hooks:
         
         # Transcription section
         trans_tree = tree.add("🧠 Transcription")
+        trans_tree.add(f"Backend: {self.config.transcription.backend}")
         trans_tree.add(f"Model Size: {self.config.transcription.model_size}")
         trans_tree.add(f"Language: {self.config.transcription.language or 'auto-detect'}")
         trans_tree.add(f"Device: {self.config.transcription.device}")
         trans_tree.add(f"Compute Type: {self.config.transcription.compute_type}")
         trans_tree.add(f"Confidence Threshold: {self.config.transcription.confidence_threshold}")
+        
+        # Show remote settings if using remote backend
+        if self.config.transcription.backend == "remote":
+            remote_tree = trans_tree.add("Remote Settings")
+            remote_tree.add(f"Host: {self.config.transcription.remote_host}")
+            remote_tree.add(f"Port: {self.config.transcription.remote_port}")
+            remote_tree.add(f"Protocol: {self.config.transcription.remote_protocol}")
+            remote_tree.add(f"Timeout: {self.config.transcription.remote_timeout}s")
         
         # Output section
         output_tree = tree.add("📄 Output")
@@ -403,10 +424,16 @@ hooks:
             self.config.audio.chunk_duration = kwargs['chunk_duration']
         
         # Transcription settings
+        if 'backend' in kwargs and kwargs['backend'] is not None:
+            self.config.transcription.backend = kwargs['backend']
         if 'model' in kwargs and kwargs['model'] is not None:
             self.config.transcription.model_size = kwargs['model']
         if 'language' in kwargs and kwargs['language'] is not None:
             self.config.transcription.language = kwargs['language']
+        if 'remote_host' in kwargs and kwargs['remote_host'] is not None:
+            self.config.transcription.remote_host = kwargs['remote_host']
+        if 'remote_port' in kwargs and kwargs['remote_port'] is not None:
+            self.config.transcription.remote_port = kwargs['remote_port']
         
         # Output settings
         if 'timestamps' in kwargs and kwargs['timestamps'] is not None:

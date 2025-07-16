@@ -38,6 +38,7 @@ dependencies = [
     "psutil>=5.9.0",
     "requests>=2.32.4",
     "openai>=1.96.1",
+    "websocket-client>=1.6.0",
 ]
 
 [project.optional-dependencies]
@@ -49,6 +50,12 @@ dev = [
     "flake8>=6.0.0",
     "mypy>=1.5.0",
     "pre-commit>=3.0.0",
+]
+server = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "websockets>=12.0",
+    "python-multipart>=0.0.6",
 ]
 
 [project.scripts]

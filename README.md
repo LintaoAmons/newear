@@ -47,6 +47,9 @@ source .venv/bin/activate
 
 # Install in development mode
 uv pip install -e .
+
+# For server functionality (optional)
+uv pip install -e ".[server]"
 ```
 
 
@@ -825,6 +828,92 @@ newear --sample-rate 44100 --chunk-duration 3.0
 # With hooks enabled (see Hooks System section)
 newear --config config-openai-translation.yaml --model base
 ```
+
+## 🚀 Remote GPU Transcription
+
+**NEW: Run newear on your Mac while using a powerful GPU on another machine!**
+
+### Use Case
+- **Mac**: Audio capture, UI, and output handling
+- **Windows/Linux**: GPU-accelerated Whisper transcription (RTX 4090, RTX 5070, etc.)
+- **Network**: Real-time communication between machines
+
+### Setup Instructions
+
+#### 1. On Your GPU Machine (Windows/Linux)
+
+```bash
+# Install newear with server dependencies
+pip install -e ".[server]"
+
+# For CUDA support (recommended)
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# Start the remote server using newear
+newear server --model base --device cuda --host 0.0.0.0 --port 8765
+```
+
+#### 2. On Your Mac
+
+```bash
+# Use remote backend
+newear --config config-remote-gpu.yaml
+
+# Or via command line
+newear --backend remote --remote-host 192.168.1.100 --remote-port 8765
+
+# With specific model on remote server
+newear --backend remote --remote-host 192.168.1.100 --model large
+```
+
+### Configuration Example
+
+```yaml
+# config-remote-gpu.yaml
+transcription:
+  backend: "remote"
+  remote_host: "192.168.1.100"  # Your Windows machine IP
+  remote_port: 8765
+  remote_protocol: "http"       # or "websocket"
+  model_size: "base"            # Model runs on remote machine
+```
+
+### Performance Benefits
+
+- **🚀 GPU Acceleration**: Use RTX 4090/5070 for faster transcription
+- **📱 Mac Efficiency**: Keep Mac resources free for other tasks
+- **🌐 Network Optimized**: Compressed audio transmission
+- **⚡ Real-time**: WebSocket support for live transcription
+
+### Server Commands
+
+```bash
+# Basic server (CPU)
+newear server --model base --device cpu
+
+# GPU server (recommended)
+newear server --model large --device cuda --compute-type float16
+
+# Custom host/port
+newear server --host 0.0.0.0 --port 8765
+
+# Check server status
+curl http://192.168.1.100:8765/health
+curl http://192.168.1.100:8765/stats
+```
+
+### Network Requirements
+
+- **Same network**: Both machines on same LAN/WiFi
+- **Firewall**: Allow port 8765 (or custom port)
+- **Bandwidth**: ~100 Kbps for audio transmission
+
+### Protocols
+
+- **HTTP**: Simple request/response (default)
+- **WebSocket**: Real-time streaming (lower latency)
+
+---
 
 ## Configuration
 

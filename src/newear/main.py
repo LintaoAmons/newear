@@ -21,6 +21,7 @@ from newear.utils.config_file import ConfigManager
 from newear.utils.logging import get_logger, setup_logging, get_error_handler
 from newear.transcription.whisper_local import WhisperTranscriber
 from newear.transcription.file_transcriber import FileTranscriber
+from newear.transcription.remote_whisper import RemoteWhisperTranscriber, RemoteServerConfig
 from newear.hooks.manager import HookManager
 from newear.hooks.factory import HookFactory
 
@@ -41,7 +42,10 @@ console = Console()
 def main(
     ctx: typer.Context,
     device: Optional[int] = typer.Option(None, "--device", "-d", help="Audio device index (use --list-devices to see available)"),
+    backend: Optional[str] = typer.Option(None, "--backend", "-b", help="Transcription backend (whisper, remote)"),
     model: Optional[str] = typer.Option(None, "--model", "-m", help="Whisper model size/name or path (tiny, base, small, medium, large, custom name, or file path)"),
+    remote_host: Optional[str] = typer.Option(None, "--remote-host", help="Remote server host (for remote backend)"),
+    remote_port: Optional[int] = typer.Option(None, "--remote-port", help="Remote server port (for remote backend)"),
     output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output file path for transcript (default: newear-YYYYMMDD_HHMMSS.txt)"),
     timestamps: Optional[bool] = typer.Option(None, "--timestamps", "-t", help="Include timestamps in output"),
     show_confidence: Optional[bool] = typer.Option(None, "--confidence", help="Show confidence scores in console output"),
@@ -68,9 +72,10 @@ def main(
         
         # Merge with CLI arguments
         config_manager.merge_with_cli_args(
-            device=device, model=model, timestamps=timestamps,
+            device=device, backend=backend, model=model, timestamps=timestamps,
             show_confidence=show_confidence, language=language,
-            sample_rate=sample_rate, chunk_duration=chunk_duration
+            sample_rate=sample_rate, chunk_duration=chunk_duration,
+            remote_host=remote_host, remote_port=remote_port
         )
         
         # Override rich_ui setting only if explicitly provided
@@ -170,18 +175,41 @@ def main(
     else:
         logger.info("Hooks disabled in configuration")
     
-    # Initialize transcriber
+    # Initialize transcriber based on backend
     try:
-        transcriber = WhisperTranscriber(
-            model_size=config_manager.config.transcription.model_size,
-            language=config_manager.config.transcription.language,
-            device=config_manager.config.transcription.device,
-            compute_type=config_manager.config.transcription.compute_type,
-            custom_models=config_manager.config.models.models
-        )
-        if not config_manager.config.display.rich_ui:
-            console.print(f"[blue]Initializing Whisper model: {config_manager.config.transcription.model_size}[/blue]")
-        logger.info(f"Initializing Whisper model: {config_manager.config.transcription.model_size}")
+        backend = config_manager.config.transcription.backend
+        
+        if backend == "remote":
+            # Create remote server config
+            remote_config = RemoteServerConfig(
+                host=config_manager.config.transcription.remote_host,
+                port=config_manager.config.transcription.remote_port,
+                protocol=config_manager.config.transcription.remote_protocol,
+                timeout=config_manager.config.transcription.remote_timeout,
+                model_size=config_manager.config.transcription.model_size
+            )
+            
+            transcriber = RemoteWhisperTranscriber(
+                remote_config=remote_config,
+                language=config_manager.config.transcription.language
+            )
+            
+            if not config_manager.config.display.rich_ui:
+                console.print(f"[blue]Connecting to remote Whisper server: {remote_config.host}:{remote_config.port}[/blue]")
+            logger.info(f"Using remote Whisper server: {remote_config.host}:{remote_config.port}")
+        
+        else:  # Default to local whisper
+            transcriber = WhisperTranscriber(
+                model_size=config_manager.config.transcription.model_size,
+                language=config_manager.config.transcription.language,
+                device=config_manager.config.transcription.device,
+                compute_type=config_manager.config.transcription.compute_type,
+                custom_models=config_manager.config.models.models
+            )
+            if not config_manager.config.display.rich_ui:
+                console.print(f"[blue]Initializing Whisper model: {config_manager.config.transcription.model_size}[/blue]")
+            logger.info(f"Initializing Whisper model: {config_manager.config.transcription.model_size}")
+            
     except Exception as e:
         error_handler.handle_error(e, "initializing transcriber", fatal=True)
         sys.exit(1)
@@ -189,7 +217,10 @@ def main(
     # Start captioning
     if not config_manager.config.display.rich_ui:
         console.print("[green]Starting Newear audio captioning...[/green]")
-        console.print(f"[blue]Model: {config_manager.config.transcription.model_size}[/blue]")
+        if backend == "remote":
+            console.print(f"[blue]Backend: Remote ({config_manager.config.transcription.remote_host}:{config_manager.config.transcription.remote_port})[/blue]")
+        else:
+            console.print(f"[blue]Model: {config_manager.config.transcription.model_size}[/blue]")
         console.print(f"[blue]Device: {config_manager.config.audio.device_index or 'auto-detect'}[/blue]")
         console.print(f"[blue]Sample rate: {config_manager.config.audio.sample_rate}Hz[/blue]")
         console.print(f"[blue]Chunk duration: {config_manager.config.audio.chunk_duration}s[/blue]")
@@ -524,6 +555,88 @@ def transcribe_file(
         file_writer.close_file()
         continuous_writer.close_file()
         file_transcriber.cleanup()
+
+
+@app.command("server")
+def run_server(
+    model: str = typer.Option("base", "--model", "-m", help="Whisper model size (tiny, base, small, medium, large)"),
+    device: str = typer.Option("cpu", "--device", "-d", help="Device to use (cpu, cuda)"),
+    compute_type: str = typer.Option("float16", "--compute-type", "-c", help="Compute type (float16, int8, float32)"),
+    host: str = typer.Option("0.0.0.0", "--host", "-h", help="Host to bind to"),
+    port: int = typer.Option(8765, "--port", "-p", help="Port to bind to"),
+    workers: int = typer.Option(1, "--workers", "-w", help="Number of workers"),
+    log_level: str = typer.Option("info", "--log-level", help="Log level (debug, info, warning, error)"),
+):
+    """Start remote Whisper transcription server."""
+    
+    # Check if server dependencies are available
+    try:
+        import uvicorn
+        from fastapi import FastAPI
+        from pydantic import BaseModel
+    except ImportError:
+        console.print("[red]Server dependencies not installed![/red]")
+        console.print("[yellow]Install with: pip install 'fastapi>=0.104.0' 'uvicorn[standard]>=0.24.0' websockets[/yellow]")
+        raise typer.Exit(1)
+    
+    # Check if faster-whisper is available
+    try:
+        from faster_whisper import WhisperModel
+    except ImportError:
+        console.print("[red]faster-whisper not installed![/red]")
+        console.print("[yellow]Install with: pip install faster-whisper[/yellow]")
+        raise typer.Exit(1)
+    
+    # Import and start the server
+    from .server.whisper_server import create_server_app, RemoteWhisperServer
+    
+    console.print("[green]Starting Remote Whisper Server...[/green]")
+    console.print(f"[blue]Model: {model}[/blue]")
+    console.print(f"[blue]Device: {device}[/blue]") 
+    console.print(f"[blue]Compute Type: {compute_type}[/blue]")
+    console.print(f"[blue]Host: {host}[/blue]")
+    console.print(f"[blue]Port: {port}[/blue]")
+    
+    # Create server instance
+    server = RemoteWhisperServer(
+        model_size=model,
+        device=device,
+        compute_type=compute_type
+    )
+    
+    # Create FastAPI app
+    app_instance = create_server_app(server)
+    
+    # Load model
+    console.print("[blue]Loading Whisper model...[/blue]")
+    if not server.load_model():
+        console.print("[red]Failed to load model. Exiting.[/red]")
+        raise typer.Exit(1)
+    
+    console.print("[green]Server ready![/green]")
+    console.print("Endpoints:")
+    console.print(f"  Health: http://{host}:{port}/health")
+    console.print(f"  Stats: http://{host}:{port}/stats")
+    console.print(f"  Transcribe: http://{host}:{port}/transcribe")
+    console.print(f"  WebSocket: ws://{host}:{port}/ws")
+    console.print("[yellow]Press Ctrl+C to stop[/yellow]")
+    
+    # Start server
+    try:
+        uvicorn.run(
+            app_instance,
+            host=host,
+            port=port,
+            workers=workers,
+            log_level=log_level
+        )
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Server stopped by user[/yellow]")
+        server.cleanup()
+    except Exception as e:
+        console.print(f"[red]Server error: {e}[/red]")
+        server.cleanup()
+        raise typer.Exit(1)
 
 
 def cli():

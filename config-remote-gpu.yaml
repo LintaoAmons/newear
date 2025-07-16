@@ -1,0 +1,39 @@
+# Remote GPU Transcription Configuration
+# Run newear on Mac, use GPU server on Windows/Linux
+
+# Audio capture settings (on local machine)
+audio:
+  chunk_duration: 3.0       # Shorter chunks for faster processing
+  sample_rate: 16000        # Standard sample rate
+  
+# Transcription settings (using remote server)
+transcription:
+  backend: "remote"         # Use remote server
+  model_size: "base"        # Model size on remote server
+  language: null            # Language (null for auto-detect)
+  
+  # Remote server configuration
+  remote_host: "192.168.1.100"  # IP of your Windows machine
+  remote_port: 8765              # Server port
+  remote_protocol: "http"        # http or websocket
+  remote_timeout: 30.0           # Request timeout
+  
+# Output settings
+output:
+  show_timestamps: true
+  show_confidence: true
+  formats: ["txt", "continuous"]
+  
+# Display settings
+display:
+  rich_ui: true
+  show_stats: true
+  
+# Hooks (optional)
+hooks:
+  enabled: true
+  hooks:
+    - type: "console_log"
+      enabled: true
+      config:
+        show_confidence: true
