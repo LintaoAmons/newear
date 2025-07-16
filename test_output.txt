@@ -1,0 +1,7 @@
+Audio detected: RMS = 0.091929
+Audio detected: RMS = 0.069043
+Audio detected: RMS = 0.015771
+Audio detected: RMS = 0.018288
+Audio detected: RMS = 0.161837
+Audio detected: RMS = 0.176804
+Audio detected: RMS = 0.164628

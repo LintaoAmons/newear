@@ -5,7 +5,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-from newear.audio import AudioCapture, AudioConfig
+from newear.audio.capture import AudioCapture, AudioConfig
 
 
 def main():
@@ -23,7 +23,7 @@ def main():
     
     # List available devices
     print("Available audio devices:")
-    capture.list_devices()
+    capture.device_manager.list_devices()
     print()
     
     # Test audio capture
