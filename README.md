@@ -1,6 +1,6 @@
 # Newear 🎧
 
-> Vide with ClaudeCode
+> Vibe with ClaudeCode
 
 A fully local and free real-time system audio captioning CLI tool for macOS using local transcription models.
 
