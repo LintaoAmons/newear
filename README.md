@@ -229,6 +229,69 @@ Audio Capture → Chunking → Whisper Model → Text Output → File/Display
 
 ## Development
 
+### Testing Phase 1 Implementation
+
+The Phase 1 implementation includes:
+- ✅ pyproject.toml with setuptools configuration
+- ✅ CLI structure with Typer
+- ✅ Audio capture with sounddevice
+- ✅ File output with timestamps
+
+#### Prerequisites for Testing
+```bash
+# Activate virtual environment
+uv venv
+source .venv/bin/activate
+
+# Install in development mode
+uv pip install -e .
+
+# Install dev dependencies
+uv pip install -e ".[dev]"
+```
+
+#### Phase 1 Testing Steps
+
+1. **Test CLI Installation**
+   ```bash
+   newear --help
+   ```
+   Expected: Help text showing all available options
+
+2. **Test Audio Device Detection**
+   ```bash
+   newear --list-devices
+   ```
+   Expected: List of audio devices including BlackHole if installed
+
+3. **Test Basic Audio Capture**
+   ```bash
+   python test_audio.py
+   ```
+   Expected: Device list, audio capture test with RMS levels > 0 when audio plays
+
+4. **Test File Output**
+   ```bash
+   newear --output test_output.txt
+   # Play some audio, then stop with Ctrl+C
+   ```
+   Expected: Creates test_output.txt with timestamped entries
+
+5. **Test CLI Options**
+   ```bash
+   newear --timestamps --chunk-duration 1.0 --sample-rate 16000
+   ```
+   Expected: Runs with specified settings, shows configuration
+
+#### Manual Testing Checklist
+- [ ] CLI command installs correctly (`newear --help`)
+- [ ] Audio devices are detected (`--list-devices`)
+- [ ] Audio capture works with RMS levels > 0 (`test_audio.py`)
+- [ ] File output creates timestamped entries (`--output file.txt`)
+- [ ] Different audio settings work (`--sample-rate`, `--chunk-duration`)
+- [ ] Error handling works (invalid device, no audio)
+- [ ] Graceful shutdown with Ctrl+C
+
 ### Running Tests
 ```bash
 # Install dev dependencies
