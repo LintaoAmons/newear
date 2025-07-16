@@ -1,0 +1,43 @@
+# Test configuration for hooks
+audio:
+  sample_rate: 16000
+  chunk_duration: 3.0
+  device_index: null
+
+transcription:
+  model_size: "tiny"
+  language: null
+
+output:
+  show_timestamps: true
+  show_confidence: true
+
+display:
+  rich_ui: false
+  show_stats: true
+
+hooks:
+  enabled: true
+  hooks:
+    # Simple console log hook
+    - type: "console_log"
+      enabled: true
+      config:
+        show_confidence: true
+    
+    # Translation hook example (requires 'trans' command)
+    - type: "translation"
+      enabled: true
+      config:
+        target_language: "es"
+        service: "command"
+        command: "echo 'Translation: {text}'"
+        print_translation: true
+        timeout: 5
+    
+    # File append hook
+    - type: "file_append"
+      enabled: true
+      config:
+        file_path: "hooks-test.log"
+        format: "[{confidence:.2f}] {text}"

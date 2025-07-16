@@ -3,6 +3,7 @@
 import os
 import yaml
 import toml
+import re
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, asdict, field
@@ -10,6 +11,27 @@ from dataclasses import dataclass, asdict, field
 from rich.console import Console
 
 console = Console()
+
+
+def expand_env_vars(data: Any) -> Any:
+    """Recursively expand environment variables in configuration data."""
+    if isinstance(data, dict):
+        return {key: expand_env_vars(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [expand_env_vars(item) for item in data]
+    elif isinstance(data, str):
+        # Replace ${VAR} and ${VAR:-default} patterns
+        def replace_var(match):
+            var_expr = match.group(1)
+            if ':-' in var_expr:
+                var_name, default_value = var_expr.split(':-', 1)
+                return os.getenv(var_name, default_value)
+            else:
+                return os.getenv(var_expr, match.group(0))  # Return original if not found
+        
+        return re.sub(r'\$\{([^}]+)\}', replace_var, data)
+    else:
+        return data
 
 
 @dataclass
@@ -61,6 +83,20 @@ class ModelConfig:
 
 
 @dataclass
+class HookConfig:
+    """Hook configuration settings."""
+    enabled: bool = True
+    hooks: List[Dict[str, Any]] = field(default_factory=list)  # List of hook definitions
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            'enabled': self.enabled,
+            'hooks': self.hooks
+        }
+
+
+@dataclass
 class NewearConfig:
     """Complete newear configuration."""
     audio: AudioConfig = field(default_factory=AudioConfig)
@@ -68,6 +104,7 @@ class NewearConfig:
     output: OutputConfig = field(default_factory=OutputConfig)
     display: DisplayConfig = field(default_factory=DisplayConfig)
     models: ModelConfig = field(default_factory=ModelConfig)
+    hooks: HookConfig = field(default_factory=HookConfig)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -81,7 +118,8 @@ class NewearConfig:
             transcription=TranscriptionConfig(**data.get('transcription', {})),
             output=OutputConfig(**data.get('output', {})),
             display=DisplayConfig(**data.get('display', {})),
-            models=ModelConfig(**data.get('models', {}))
+            models=ModelConfig(**data.get('models', {})),
+            hooks=HookConfig(**data.get('hooks', {}))
         )
 
 
@@ -115,6 +153,8 @@ class ConfigManager:
         """Load configuration from file."""
         if config_file is None:
             config_file = self.find_config_file()
+        elif isinstance(config_file, str):
+            config_file = Path(config_file)
         
         if config_file is None:
             console.print("[dim]No configuration file found, using defaults[/dim]")
@@ -133,6 +173,8 @@ class ConfigManager:
                     raise ValueError(f"Unsupported config file format: {config_file.suffix}")
             
             if data:
+                # Expand environment variables
+                data = expand_env_vars(data)
                 self.config = NewearConfig.from_dict(data)
                 console.print("[green]Configuration loaded successfully[/green]")
             
@@ -227,6 +269,61 @@ models:
     # my-model: "/path/to/custom/model"
     # finetuned: "~/models/my-finetuned-whisper"
     # large-v3: "openai/whisper-large-v3"
+
+# Hook settings
+hooks:
+  enabled: true            # Enable/disable hook system
+  hooks:                   # Hook definitions
+    # Example: Console log hook
+    # - type: "console_log"
+    #   enabled: true
+    #   config:
+    #     show_confidence: true
+    #
+    # Example: Translation hook (command-line)
+    # - type: "translation"
+    #   enabled: true
+    #   config:
+    #     target_language: "es"
+    #     service: "command"
+    #     command: "trans -brief en:es '{text}'"
+    #     print_translation: true
+    #
+    # Example: OpenAI translation hook
+    # - type: "openai_translation"
+    #   enabled: true
+    #   config:
+    #     api_key: "${OPENAI_API_KEY}"  # Use environment variable
+    #     base_url: null  # Optional: "https://openrouter.ai/api/v1" for OpenRouter
+    #     target_language: "Chinese"
+    #     model: "gpt-3.5-turbo"  # or "openai/gpt-3.5-turbo" for OpenRouter
+    #     max_tokens: 1000
+    #     temperature: 0.3
+    #     print_translation: true
+    #     output_prefix: ""  # Optional prefix for translations (e.g., "🤖", "AI:", etc.)
+    #
+    # Example: File append hook
+    # - type: "file_append"
+    #   enabled: true
+    #   config:
+    #     file_path: "hooks.log"
+    #     format: "[{timestamp}] {text}"
+    #
+    # Example: Command hook
+    # - type: "command"
+    #   enabled: true
+    #   config:
+    #     command: "echo 'Transcribed: {text}' | notify-send"
+    #     timeout: 10
+    #
+    # Example: Webhook hook
+    # - type: "webhook"
+    #   enabled: true
+    #   config:
+    #     url: "https://api.example.com/webhook"
+    #     timeout: 10
+    #     headers:
+    #       Authorization: "Bearer YOUR_TOKEN"
 """
         return template
     
@@ -279,6 +376,19 @@ models:
                 custom_models_tree.add(f"{name}: {path}")
         else:
             models_tree.add("No custom models configured")
+        
+        # Hooks section
+        hooks_tree = tree.add("🪝 Hooks")
+        hooks_tree.add(f"Enabled: {self.config.hooks.enabled}")
+        if self.config.hooks.hooks:
+            hooks_list_tree = hooks_tree.add("Configured Hooks")
+            for i, hook in enumerate(self.config.hooks.hooks):
+                hook_type = hook.get('type', 'unknown')
+                hook_enabled = hook.get('enabled', True)
+                status = "✓" if hook_enabled else "✗"
+                hooks_list_tree.add(f"{status} {hook_type}")
+        else:
+            hooks_tree.add("No hooks configured")
         
         console.print(tree)
     

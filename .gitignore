@@ -34,3 +34,4 @@ htmlcov/
 *.txt
 test-sample.mp4
 models/faster-whisper-tiny
+models/faster-whisper-large

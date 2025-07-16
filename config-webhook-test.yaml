@@ -1,0 +1,38 @@
+# Configuration for testing webhook functionality
+# Start the webhook server first: python3 webhook_test_server.py
+
+audio:
+  sample_rate: 16000
+  chunk_duration: 3.0
+  device_index: null
+
+transcription:
+  model_size: "tiny"  # Use tiny for faster testing
+  language: null
+
+output:
+  show_timestamps: true
+  show_confidence: true
+
+display:
+  rich_ui: false  # Disable rich UI to see webhook output clearly
+  show_stats: false
+
+hooks:
+  enabled: true
+  hooks:
+    # Webhook hook to test server
+    - type: "webhook"
+      enabled: true
+      config:
+        url: "http://localhost:8080"
+        timeout: 10
+        headers:
+          Content-Type: "application/json"
+          User-Agent: "newear-webhook-test"
+    
+    # Console log for comparison
+    - type: "console_log"
+      enabled: true
+      config:
+        show_confidence: true

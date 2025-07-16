@@ -21,6 +21,8 @@ from newear.utils.config_file import ConfigManager
 from newear.utils.logging import get_logger, setup_logging, get_error_handler
 from newear.transcription.whisper_local import WhisperTranscriber
 from newear.transcription.file_transcriber import FileTranscriber
+from newear.hooks.manager import HookManager
+from newear.hooks.factory import HookFactory
 
 app = typer.Typer(
     name="newear",
@@ -51,7 +53,7 @@ def main(
     config_file: Optional[Path] = typer.Option(None, "--config", help="Path to configuration file"),
     rich_ui: Optional[bool] = typer.Option(None, "--rich-ui/--no-rich-ui", help="Enable/disable rich terminal UI"),
     formats: Optional[str] = typer.Option(None, "--formats", help="Output formats (comma-separated: txt,json,srt,vtt,csv)"),
-    log_level: str = typer.Option("INFO", "--log-level", help="Log level (DEBUG, INFO, WARNING, ERROR)"),
+    log_level: str = typer.Option("WARNING", "--log-level", help="Log level (DEBUG, INFO, WARNING, ERROR)"),
 ):
     """Start real-time audio captioning."""
     
@@ -157,6 +159,17 @@ def main(
         )
         display = RichTerminalDisplay(display_config)
     
+    # Initialize hook manager
+    hook_manager = HookManager()
+    if config_manager.config.hooks.enabled:
+        hooks = HookFactory.create_hooks_from_config(config_manager.config.hooks.to_dict())
+        for hook in hooks:
+            hook_manager.register_hook(hook)
+        if hooks:
+            logger.info(f"Initialized {len(hooks)} hooks")
+    else:
+        logger.info("Hooks disabled in configuration")
+    
     # Initialize transcriber
     try:
         transcriber = WhisperTranscriber(
@@ -246,6 +259,18 @@ def main(
                     continuous_writer.write_continuous(text)
                 except Exception as e:
                     error_handler.handle_error(e, "writing to file")
+                
+                # Execute hooks after processing
+                if config_manager.config.hooks.enabled:
+                    try:
+                        hook_context = hook_manager.create_context(result)
+                        hook_results = hook_manager.execute_hooks(hook_context)
+                        # Log any hook failures
+                        for hook_result in hook_results:
+                            if not hook_result.success:
+                                logger.warning(f"Hook failed: {hook_result.error}")
+                    except Exception as e:
+                        error_handler.handle_error(e, "executing hooks")
                 
                 # Log transcription
                 logger.debug(f"Transcribed: {text} (confidence: {result.confidence:.2f})")
@@ -416,6 +441,15 @@ def transcribe_file(
     file_writer = FileWriter(output, show_timestamps=True)
     continuous_writer = FileWriter(output.with_suffix('.continuous.txt'), show_timestamps=False)
     
+    # Initialize hook manager for file transcription
+    hook_manager = HookManager()
+    if config_manager.config.hooks.enabled:
+        hooks = HookFactory.create_hooks_from_config(config_manager.config.hooks.to_dict())
+        for hook in hooks:
+            hook_manager.register_hook(hook)
+        if hooks:
+            logger.info(f"Initialized {len(hooks)} hooks for file transcription")
+    
     try:
         # Open files for writing
         file_writer.open_file()
@@ -436,6 +470,18 @@ def transcribe_file(
                 file_writer.write_entry(text, confidence=result.confidence, 
                                       start_time=result.start_time, end_time=result.end_time)
                 continuous_writer.write_continuous(text)
+                
+                # Execute hooks after processing
+                if config_manager.config.hooks.enabled:
+                    try:
+                        hook_context = hook_manager.create_context(result)
+                        hook_results = hook_manager.execute_hooks(hook_context)
+                        # Log any hook failures
+                        for hook_result in hook_results:
+                            if not hook_result.success:
+                                logger.warning(f"Hook failed: {hook_result.error}")
+                    except Exception as e:
+                        error_handler.handle_error(e, "executing hooks")
                 
                 total_entries += 1
                 

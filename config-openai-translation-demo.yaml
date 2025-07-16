@@ -1,0 +1,41 @@
+# Demo configuration for OpenAI translation hook
+# This version uses a placeholder for the API key for demonstration
+# In production, use environment variables or secure key management
+
+audio:
+  sample_rate: 16000
+  chunk_duration: 3.0
+  device_index: null
+
+transcription:
+  model_size: "tiny"
+  language: null
+
+output:
+  show_timestamps: true
+  show_confidence: true
+
+display:
+  rich_ui: false
+  show_stats: false
+
+hooks:
+  enabled: true
+  hooks:
+    # OpenAI translation hook - translates to Chinese
+    - type: "openai_translation"
+      enabled: true
+      config:
+        api_key: "YOUR_OPENAI_API_KEY_HERE"  # Replace with your actual API key
+        target_language: "Chinese"
+        model: "gpt-3.5-turbo"
+        max_tokens: 1000
+        temperature: 0.3
+        print_translation: true
+        output_prefix: ""  # Optional prefix for translations (e.g., "🤖", "AI:", etc.)
+    
+    # Console log for comparison
+    - type: "console_log"
+      enabled: true
+      config:
+        show_confidence: true

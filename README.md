@@ -10,7 +10,8 @@ Newear is a versatile, fully local and free audio transcription tool that provid
 - **Video/audio file transcription** - process existing recordings, lectures, meetings
 - **Accessibility support** for hearing-impaired users
 - **Creating transcripts** from any audio source (live or recorded)
-- **Real-time translation workflows** with multiple output formats
+- **Real-time translation workflows** with AI-powered hooks system
+- **Extensible integrations** via webhooks, commands, and custom actions
 
 ## Features
 
@@ -19,6 +20,7 @@ Newear is a versatile, fully local and free audio transcription tool that provid
 - 🧠 **100% local transcription** with faster-whisper (no internet required, completely free)
 - 📝 **Live terminal display** with rich formatting and progress tracking
 - 💾 **Multiple output formats** - TXT, JSON, SRT, VTT, CSV with timestamps
+- 🪝 **Extensible hook system** - AI translation, webhooks, custom actions after transcription
 - 🖥️ **macOS optimized** with Apple Silicon support
 - ⚡ **Fast performance** (~10x faster than regular Whisper)
 - 🔧 **Flexible configuration** - YAML/TOML configs with CLI overrides
@@ -819,6 +821,9 @@ newear --model small --chunk-duration 8.0 --confidence --output meeting.txt
 
 # Custom audio settings
 newear --sample-rate 44100 --chunk-duration 3.0
+
+# With hooks enabled (see Hooks System section)
+newear --config config-openai-translation.yaml --model base
 ```
 
 ## Configuration
@@ -1060,6 +1065,342 @@ Settings are applied in this order (highest to lowest priority):
 5. **Default values** (lowest priority)
 
 This allows you to set up default preferences in a config file while easily overriding them for specific use cases.
+
+## Hooks System
+
+Newear features a powerful and extensible hook system that allows you to automatically perform actions after each transcription chunk. This enables real-time translation, external integrations, notifications, and custom workflows.
+
+### What are Hooks?
+
+Hooks are actions that execute automatically after each piece of audio is transcribed. They receive the transcribed text, confidence score, and timing information, allowing you to:
+
+- **Translate text** in real-time using AI services
+- **Send notifications** to external systems via webhooks
+- **Log transcriptions** to custom files or databases
+- **Execute commands** with the transcribed text
+- **Chain multiple actions** together
+
+### Quick Start with Hooks
+
+**1. Enable a simple translation hook:**
+
+```yaml
+# config.yaml
+hooks:
+  enabled: true
+  hooks:
+    - type: "openai_translation"
+      enabled: true
+      config:
+        api_key: "${OPENAI_API_KEY}"
+        target_language: "Chinese"
+        model: "gpt-3.5-turbo"
+```
+
+**2. Run with hooks enabled:**
+
+```bash
+export OPENAI_API_KEY=sk-your-key-here
+newear --config config.yaml
+```
+
+**3. See real-time translation:**
+
+```
+📝 [0.95] Hello world, this is a test
+[Chinese] 你好世界，这是一个测试
+```
+
+### Built-in Hook Types
+
+#### 1. Console Log Hook
+Display transcriptions in the console with custom formatting:
+
+```yaml
+- type: "console_log"
+  enabled: true
+  config:
+    show_confidence: true  # Show confidence scores
+```
+
+#### 2. OpenAI Translation Hook
+Translate transcriptions using OpenAI or compatible APIs:
+
+```yaml
+- type: "openai_translation"
+  enabled: true
+  config:
+    api_key: "${OPENAI_API_KEY}"
+    base_url: null  # Optional: use OpenRouter or other providers
+    target_language: "Chinese"
+    model: "gpt-3.5-turbo"
+    output_prefix: ""  # Optional prefix for translations
+```
+
+#### 3. File Append Hook
+Save transcriptions to custom log files:
+
+```yaml
+- type: "file_append"
+  enabled: true
+  config:
+    file_path: "transcriptions.log"
+    format: "[{confidence:.2f}] {text}"
+```
+
+#### 4. Command Hook
+Execute shell commands with transcription text:
+
+```yaml
+- type: "command"
+  enabled: true
+  config:
+    command: "echo 'Transcribed: {text}' | notify-send"
+    timeout: 10
+```
+
+#### 5. Webhook Hook
+Send transcriptions to HTTP endpoints:
+
+```yaml
+- type: "webhook"
+  enabled: true
+  config:
+    url: "https://your-api.example.com/transcription"
+    timeout: 10
+    headers:
+      Authorization: "Bearer YOUR_TOKEN"
+```
+
+### Advanced Hook Examples
+
+#### Multi-Language Translation
+
+```yaml
+hooks:
+  enabled: true
+  hooks:
+    # Translate to Chinese
+    - type: "openai_translation"
+      enabled: true
+      config:
+        api_key: "${OPENAI_API_KEY}"
+        target_language: "Chinese"
+        model: "gpt-3.5-turbo"
+        output_prefix: "🇨🇳"
+    
+    # Translate to Spanish
+    - type: "openai_translation"
+      enabled: true
+      config:
+        api_key: "${OPENAI_API_KEY}"
+        target_language: "Spanish"
+        model: "gpt-3.5-turbo"
+        output_prefix: "🇪🇸"
+```
+
+#### Meeting Integration Workflow
+
+```yaml
+hooks:
+  enabled: true
+  hooks:
+    # Log original transcription
+    - type: "console_log"
+      enabled: true
+      config:
+        show_confidence: true
+    
+    # Save to meeting notes
+    - type: "file_append"
+      enabled: true
+      config:
+        file_path: "meeting-notes.txt"
+        format: "[{confidence:.2f}] {text}"
+    
+    # Send to team webhook
+    - type: "webhook"
+      enabled: true
+      config:
+        url: "https://team-api.company.com/meeting-transcript"
+        headers:
+          Authorization: "Bearer ${TEAM_API_TOKEN}"
+    
+    # Translate for international team
+    - type: "openai_translation"
+      enabled: true
+      config:
+        api_key: "${OPENAI_API_KEY}"
+        target_language: "Japanese"
+        model: "gpt-3.5-turbo"
+```
+
+#### Development and Testing
+
+```yaml
+hooks:
+  enabled: true
+  hooks:
+    # Test webhook server
+    - type: "webhook"
+      enabled: true
+      config:
+        url: "http://localhost:8080"
+        timeout: 5
+    
+    # Command-line translation for testing
+    - type: "command"
+      enabled: true
+      config:
+        command: "trans -brief en:es '{text}'"
+        timeout: 30
+```
+
+### Hook Configuration Options
+
+#### Common Options (All Hooks)
+- `type`: Hook type (required)
+- `enabled`: Enable/disable the hook
+- `config`: Hook-specific configuration
+
+#### OpenAI Translation Hook
+- `api_key`: OpenAI API key (required)
+- `base_url`: Custom API endpoint (optional, for OpenRouter etc.)
+- `target_language`: Target language for translation
+- `model`: AI model to use
+- `max_tokens`: Maximum tokens for translation
+- `temperature`: Response randomness (0.0-1.0)
+- `output_prefix`: Prefix for translation output
+
+#### Webhook Hook
+- `url`: HTTP endpoint URL (required)
+- `timeout`: Request timeout in seconds
+- `headers`: Custom HTTP headers
+
+#### File Append Hook
+- `file_path`: Path to log file
+- `format`: Format string for log entries
+
+#### Command Hook
+- `command`: Shell command to execute
+- `timeout`: Command timeout in seconds
+
+### Using Alternative AI Providers
+
+#### OpenRouter (Multiple Models)
+
+```yaml
+- type: "openai_translation"
+  enabled: true
+  config:
+    api_key: "${OPENROUTER_API_KEY}"
+    base_url: "https://openrouter.ai/api/v1"
+    target_language: "Chinese"
+    model: "openai/gpt-3.5-turbo"  # OpenRouter model format
+```
+
+#### Multiple Providers Comparison
+
+```yaml
+hooks:
+  enabled: true
+  hooks:
+    # OpenAI Direct
+    - type: "openai_translation"
+      enabled: true
+      config:
+        api_key: "${OPENAI_API_KEY}"
+        target_language: "Chinese"
+        model: "gpt-3.5-turbo"
+        output_prefix: "🤖 OpenAI:"
+    
+    # OpenRouter Claude
+    - type: "openai_translation"
+      enabled: false  # Disabled by default
+      config:
+        api_key: "${OPENROUTER_API_KEY}"
+        base_url: "https://openrouter.ai/api/v1"
+        target_language: "Chinese"
+        model: "anthropic/claude-3.5-sonnet"
+        output_prefix: "🧠 Claude:"
+```
+
+### Hook Testing
+
+#### Test Webhook Server
+
+Start a test server to validate webhook functionality:
+
+```bash
+# Start test server
+python3 webhook_test_server.py
+
+# Test with webhook config
+newear --config config-webhook-test.yaml
+```
+
+The test server will display received data with "python server echo" prefix.
+
+#### Test Translation Hook
+
+```bash
+# Test without real API calls
+python3 test_openai_translation.py
+
+# Test with real API
+export OPENAI_API_KEY=sk-your-key
+newear --config config-openai-translation.yaml
+```
+
+### Hook Development
+
+You can extend the hook system by creating custom hooks:
+
+```python
+from newear.hooks.manager import Hook
+from newear.hooks.types import HookResult, HookContext
+
+class CustomHook(Hook):
+    def execute(self, context: HookContext) -> HookResult:
+        text = context.transcription_result.text
+        # Your custom logic here
+        return HookResult(success=True, message="Custom action completed")
+```
+
+### Hook Performance
+
+- **Execution**: Hooks run asynchronously after transcription
+- **Error Handling**: Failed hooks don't affect transcription
+- **Logging**: Hook results are logged for debugging
+- **Timeout**: Individual hooks can timeout without affecting others
+
+### Best Practices
+
+1. **Start Simple**: Begin with console_log and file_append hooks
+2. **Test Thoroughly**: Use test servers before production webhooks
+3. **Monitor Costs**: AI translation hooks consume API credits
+4. **Handle Failures**: Hooks may fail without stopping transcription
+5. **Use Environment Variables**: Keep API keys secure with `${VAR}` syntax
+6. **Enable Selectively**: Use `enabled: false` to disable hooks temporarily
+
+### Troubleshooting Hooks
+
+**Hook not executing:**
+- Check `hooks.enabled: true` in configuration
+- Verify individual hook `enabled: true`
+- Check logs for error messages
+
+**API errors:**
+- Verify API keys are set correctly
+- Check network connectivity
+- Monitor API rate limits
+
+**Performance issues:**
+- Reduce number of active hooks
+- Increase timeout values
+- Use smaller AI models for translation
+
+See `OPENAI_TRANSLATION_SETUP.md` for detailed translation hook setup and `WEBHOOK_TESTING.md` for webhook testing instructions.
 
 ### Output File Examples
 

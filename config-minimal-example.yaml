@@ -23,7 +23,7 @@ output:
 
 # Display settings (simple)
 display:
-  rich_ui: true           # Simple text output
+  rich_ui: false           # Simple text output
   show_stats: false        # No extra stats
 
 # Custom model settings (minimal)

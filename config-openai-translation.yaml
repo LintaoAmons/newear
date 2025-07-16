@@ -1,0 +1,49 @@
+# Configuration for testing OpenAI translation hook
+# Set your OpenAI API key as environment variable: export OPENAI_API_KEY=your_key_here
+# Or directly in the config (not recommended for production)
+
+audio:
+  sample_rate: 16000
+  chunk_duration: 3.0
+  device_index: null
+
+transcription:
+  model_size: "tiny"  # Use tiny for faster testing
+  language: null
+
+output:
+  show_timestamps: true
+  show_confidence: true
+
+display:
+  rich_ui: false  # Disable rich UI to see translations clearly
+  show_stats: false
+
+hooks:
+  enabled: true
+  hooks:
+    # OpenAI translation hook - translates to Chinese
+    - type: "openai_translation"
+      enabled: true
+      config:
+        api_key: "${OPENAI_API_KEY}"  # Use environment variable for API key
+        base_url: null  # Optional: Use custom provider (e.g., "https://openrouter.ai/api/v1")
+        target_language: "Chinese"
+        model: "gpt-3.5-turbo"
+        max_tokens: 1000
+        temperature: 0.3
+        print_translation: true
+        output_prefix: ""  # Optional prefix for translations (e.g., "🤖", "AI:", etc.)
+    
+    # Console log for comparison
+    - type: "console_log"
+      enabled: true
+      config:
+        show_confidence: true
+    
+    # Optional: Save translations to file
+    - type: "file_append"
+      enabled: true
+      config:
+        file_path: "translations.log"
+        format: "Original: {text}\nTranslated: (see above)\n---"

@@ -1,0 +1,58 @@
+# Configuration showing different output prefix options
+# This demonstrates how to customize the OpenAI translation output
+
+audio:
+  sample_rate: 16000
+  chunk_duration: 3.0
+  device_index: null
+
+transcription:
+  model_size: "tiny"
+  language: null
+
+output:
+  show_timestamps: true
+  show_confidence: true
+
+display:
+  rich_ui: false
+  show_stats: false
+
+hooks:
+  enabled: true
+  hooks:
+    # Default - no prefix
+    - type: "openai_translation"
+      enabled: true
+      config:
+        api_key: "${OPENAI_API_KEY}"
+        target_language: "Chinese"
+        model: "gpt-3.5-turbo"
+        print_translation: true
+        output_prefix: ""  # No prefix (default)
+    
+    # Robot emoji prefix (disabled by default)
+    - type: "openai_translation"
+      enabled: false
+      config:
+        api_key: "${OPENAI_API_KEY}"
+        target_language: "Chinese"
+        model: "gpt-3.5-turbo"
+        print_translation: true
+        output_prefix: "🤖"  # Robot emoji prefix
+    
+    # Text prefix (disabled by default)
+    - type: "openai_translation"
+      enabled: false
+      config:
+        api_key: "${OPENAI_API_KEY}"
+        target_language: "Chinese"
+        model: "gpt-3.5-turbo"
+        print_translation: true
+        output_prefix: "AI:"  # Text prefix
+    
+    # Console log for comparison
+    - type: "console_log"
+      enabled: true
+      config:
+        show_confidence: true

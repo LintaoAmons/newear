@@ -1,0 +1,73 @@
+# Example configuration with hooks for post-transcription actions
+# This shows how to use hooks for AI translation and other actions
+
+audio:
+  sample_rate: 16000
+  chunk_duration: 5.0
+  device_index: null
+
+transcription:
+  model_size: "base"
+  language: null
+  confidence_threshold: 0.7
+
+output:
+  show_timestamps: true
+  show_confidence: true
+  formats: ["txt", "continuous"]
+
+display:
+  rich_ui: true
+  max_lines: 8
+  show_stats: true
+
+hooks:
+  enabled: true
+  hooks:
+    # Console log hook - prints transcription to console with confidence
+    - type: "console_log"
+      enabled: true
+      config:
+        show_confidence: true
+    
+    # Translation hook - translate to Spanish using Google Translate CLI
+    # Requires: pip install googletrans-py
+    # Or use 'trans' command: brew install translate-shell
+    - type: "translation"
+      enabled: true
+      config:
+        target_language: "es"
+        service: "command"
+        command: "trans -brief en:es '{text}'"
+        print_translation: true
+        timeout: 10
+    
+    # File append hook - save all transcriptions to a log file
+    - type: "file_append"
+      enabled: true
+      config:
+        file_path: "transcription-log.txt"
+        format: "[{confidence:.2f}] {text}"
+    
+    # Webhook hook - send transcriptions to a web service
+    - type: "webhook"
+      enabled: false  # Disabled by default
+      config:
+        url: "https://your-api.example.com/transcription"
+        timeout: 5
+        headers:
+          Authorization: "Bearer YOUR_API_KEY"
+          Content-Type: "application/json"
+    
+    # Command hook - run custom commands with transcription
+    # Example: Send notification on macOS
+    - type: "command"
+      enabled: false  # Disabled by default
+      config:
+        command: "osascript -e 'display notification \"{text}\" with title \"Transcription\"'"
+        timeout: 5
+
+# Other settings...
+models:
+  model_dir: null
+  models: {}
