@@ -2,25 +2,28 @@
 
 > Vide with ClaudeCode
 
-Real-time system audio captioning CLI tool for macOS using local transcription models.
+A fully local and free real-time system audio captioning CLI tool for macOS using local transcription models.
 
 ## Overview
 
-Newear captures your system audio in real-time and provides live transcription using local Whisper models. Perfect for:
+Newear is a versatile, fully local and free audio transcription tool that provides both real-time system audio captioning and batch processing of video/audio files using local Whisper models. Perfect for:
 
-- Live captioning of videos, meetings, or audio content
-- Accessibility support for hearing-impaired users
-- Creating transcripts of audio content
-- Real-time translation workflows
+- **Live captioning** of videos, meetings, or streaming audio content
+- **Video/audio file transcription** - process existing recordings, lectures, meetings
+- **Accessibility support** for hearing-impaired users
+- **Creating transcripts** from any audio source (live or recorded)
+- **Real-time translation workflows** with multiple output formats
 
 ## Features
 
 - 🎵 **Real-time system audio capture** using BlackHole virtual audio device
-- 🧠 **Local transcription** with faster-whisper (no internet required)
-- 📝 **Live terminal display** with rich formatting
-- 💾 **Save transcripts** to file with timestamps
+- 🎬 **Video/audio file transcription** - process MP4, AVI, MOV, MP3, WAV, and more
+- 🧠 **100% local transcription** with faster-whisper (no internet required, completely free)
+- 📝 **Live terminal display** with rich formatting and progress tracking
+- 💾 **Multiple output formats** - TXT, JSON, SRT, VTT, CSV with timestamps
 - 🖥️ **macOS optimized** with Apple Silicon support
 - ⚡ **Fast performance** (~10x faster than regular Whisper)
+- 🔧 **Flexible configuration** - YAML/TOML configs with CLI overrides
 
 ## Installation
 
@@ -28,45 +31,8 @@ Newear captures your system audio in real-time and provides live transcription u
 
 1. **Python 3.9+** (recommended: use pyenv or system Python)
 2. **uv** - Fast Python package manager (`pip install uv` or `curl -LsSf https://astral.sh/uv/install.sh | sh`)
-3. **Homebrew** for installing BlackHole
 
-### Step 1: Install BlackHole Virtual Audio Device
-
-BlackHole is a free virtual audio device that allows capturing system audio:
-
-```bash
-brew install blackhole-2ch
-```
-
-### Step 2: Configure Audio Routing
-
-After installing BlackHole, you need to route your system audio through it:
-
-#### Using Audio MIDI Setup
-
-1. **Open Audio MIDI Setup**:
-
-   - Press `Cmd + Space` and search for "Audio MIDI Setup"
-   - Or go to Applications → Utilities → Audio MIDI Setup
-
-2. **Create a Multi-Output Device**:
-
-   - Click the `+` button in the bottom left
-   - Select "Create Multi-Output Device"
-   - Name it "System + BlackHole"
-
-3. **Configure the Multi-Output Device**:
-
-   - Check both your main speakers/headphones AND "BlackHole 2ch"
-   - Set your main speakers as "Master Device" (right-click → "Use This Device As Master")
-   - Ensure both devices have the same sample rate (44.1kHz or 48kHz)
-
-4. **Set as System Output**:
-   - Go to System Preferences → Sound → Output
-   - Select "System + BlackHole" as your output device
-   - You should still hear audio normally
-
-### Step 3: Install Newear
+### Install Newear
 
 ```bash
 # Clone the repository
@@ -83,25 +49,63 @@ source .venv/bin/activate
 uv pip install -e .
 ```
 
-### Step 4: Test Audio Capture
-
-Run the test script to verify everything is working:
-
-```bash
-python test_audio.py
-```
-
-You should see:
-
-- List of available audio devices
-- "BlackHole 2ch" in the device list
-- Audio capture test with RMS levels > 0 when audio is playing
 
 ## Usage
 
 ### 1. Live Caption Transcription
 
 Real-time system audio capture and transcription using BlackHole virtual audio device. Perfect for live captioning of videos, meetings, or any audio content playing on your Mac.
+
+#### Prerequisites for Live Captioning
+
+For live captioning, you need to install BlackHole virtual audio device and configure audio routing:
+
+**Install BlackHole:**
+```bash
+brew install blackhole-2ch
+```
+
+**Configure Audio Routing:**
+
+1. **Open Audio MIDI Setup**:
+   - Press `Cmd + Space` and search for "Audio MIDI Setup"
+   - Or go to Applications → Utilities → Audio MIDI Setup
+
+2. **Create a Multi-Output Device**:
+   - Click the `+` button in the bottom left
+   - Select "Create Multi-Output Device"
+   - Name it "System + BlackHole"
+
+3. **Configure the Multi-Output Device**:
+   - Check both your main speakers/headphones AND "BlackHole 2ch"
+   - Set your main speakers as "Master Device" (right-click → "Use This Device As Master")
+   - Ensure both devices have the same sample rate (44.1kHz or 48kHz)
+
+4. **Set as System Output**:
+   - Go to System Preferences → Sound → Output
+   - Select "System + BlackHole" as your output device
+   - You should still hear audio normally
+
+**Test Audio Capture:**
+
+Before using live captioning, test that your audio routing is working correctly:
+
+```bash
+python test_audio.py
+```
+
+This will:
+- List all available audio devices
+- Test audio capture for 10 seconds
+- Show a clear conclusion about whether your setup is working
+- Provide troubleshooting steps if there are issues
+
+**Expected results:**
+- ✅ "BlackHole 2ch" should appear in the device list
+- ✅ Audio capture test should show "SUCCESSFUL" after 10 seconds
+- ✅ RMS levels should be > 0 when audio is playing
+
+#### Live Captioning Commands
 
 ```bash
 # Start live captioning (auto-creates newear-YYYYMMDD_HHMMSS.txt files)
