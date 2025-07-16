@@ -13,7 +13,7 @@ class Config:
     # Audio settings
     sample_rate: int = 16000
     channels: int = 1
-    chunk_duration: float = 3.0
+    chunk_duration: float = 5.0
     buffer_size: int = 4096
     
     # Transcription settings
@@ -30,7 +30,7 @@ class Config:
     
     def __init__(self, device_index=None, model_size="base", output_file=None, 
                  show_timestamps=False, language=None, sample_rate=16000, 
-                 chunk_duration=3.0, channels=1, buffer_size=4096, save_audio=False):
+                 chunk_duration=5.0, channels=1, buffer_size=4096, save_audio=False):
         self.device_index = device_index
         self.model_size = model_size
         self.output_file = output_file
@@ -48,7 +48,7 @@ class Config:
         return cls(
             sample_rate=int(os.getenv("NEWEAR_SAMPLE_RATE", "16000")),
             channels=int(os.getenv("NEWEAR_CHANNELS", "1")),
-            chunk_duration=float(os.getenv("NEWEAR_CHUNK_DURATION", "3.0")),
+            chunk_duration=float(os.getenv("NEWEAR_CHUNK_DURATION", "5.0")),
             buffer_size=int(os.getenv("NEWEAR_BUFFER_SIZE", "4096")),
             model_size=os.getenv("NEWEAR_MODEL_SIZE", "base"),
             language=os.getenv("NEWEAR_LANGUAGE"),

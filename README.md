@@ -235,6 +235,44 @@ newear --model base --output transcript.txt
 
 This will use only locally cached models without any internet connection.
 
+### Optimizing Chunk Duration for Better Accuracy
+
+**Chunk duration significantly affects transcription confidence and accuracy:**
+
+```bash
+# Fast but lower accuracy (good for testing)
+newear --chunk-duration 2.0 --model tiny
+
+# Balanced accuracy and latency (default)
+newear --chunk-duration 5.0 --model base
+
+# Higher accuracy, slight delay
+newear --chunk-duration 8.0 --model small
+
+# Maximum accuracy for complex speech
+newear --chunk-duration 10.0 --model medium
+```
+
+**Chunk Duration Guidelines:**
+
+| Duration | Latency | Accuracy | Use Case |
+|----------|---------|----------|----------|
+| 1-2s | Very low | Lower | Testing, simple speech |
+| 3-5s | Low | Good | General use (default: 5s) |
+| 5-8s | Medium | High | Complex speech, technical content |
+| 8-10s | High | Highest | Maximum accuracy, presentations |
+
+**Why longer chunks are better:**
+- **More context** for the AI model to understand speech
+- **Better sentence boundaries** detection
+- **Higher confidence scores** due to complete phrases
+- **Reduced word fragmentation** in mid-sentence
+
+**Trade-offs:**
+- **Longer chunks** = Higher accuracy but more latency
+- **Shorter chunks** = Lower latency but reduced confidence
+- **Sweet spot** = 5-8 seconds for most use cases
+
 ### Advanced Usage
 
 ```bash
@@ -245,7 +283,7 @@ newear --device 5
 newear --language en
 
 # Custom audio settings
-newear --sample-rate 44100 --chunk-duration 2.0
+newear --sample-rate 44100 --chunk-duration 3.0
 ```
 
 ### Environment Variables
@@ -253,7 +291,7 @@ newear --sample-rate 44100 --chunk-duration 2.0
 ```bash
 # Audio settings
 export NEWEAR_SAMPLE_RATE=16000
-export NEWEAR_CHUNK_DURATION=3.0
+export NEWEAR_CHUNK_DURATION=5.0
 export NEWEAR_DEVICE_INDEX=5
 
 # Transcription settings
@@ -314,7 +352,7 @@ export NEWEAR_SHOW_TIMESTAMPS=true
 
 3. **Adjust Chunk Duration**:
    ```bash
-   newear --chunk-duration 5.0  # Longer chunks for better context
+   newear --chunk-duration 8.0  # Longer chunks for better context
    ```
 
 ### Performance Issues
@@ -326,7 +364,7 @@ export NEWEAR_SHOW_TIMESTAMPS=true
 
 2. **Reduce Chunk Duration**:
    ```bash
-   newear --chunk-duration 2.0
+   newear --chunk-duration 3.0
    ```
 
 3. **Check System Resources**:

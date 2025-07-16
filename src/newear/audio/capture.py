@@ -16,7 +16,7 @@ class AudioConfig:
     """Audio capture configuration."""
     sample_rate: int = 16000  # Whisper's preferred sample rate
     channels: int = 1  # Mono audio
-    chunk_duration: float = 3.0  # Duration of each audio chunk in seconds
+    chunk_duration: float = 5.0  # Duration of each audio chunk in seconds
     buffer_size: int = 4096  # Audio buffer size
     dtype: str = 'float32'  # Audio data type
 

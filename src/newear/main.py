@@ -34,7 +34,7 @@ def main(
     timestamps: bool = typer.Option(False, "--timestamps", "-t", help="Include timestamps in output"),
     language: Optional[str] = typer.Option(None, "--language", "-l", help="Language code (auto-detect if not specified)"),
     sample_rate: int = typer.Option(16000, "--sample-rate", "-s", help="Audio sample rate in Hz"),
-    chunk_duration: float = typer.Option(2.0, "--chunk-duration", "-c", help="Audio chunk duration in seconds"),
+    chunk_duration: float = typer.Option(5.0, "--chunk-duration", "-c", help="Audio chunk duration in seconds (3-10s recommended for better accuracy)"),
     list_devices: bool = typer.Option(False, "--list-devices", help="List available audio devices and exit"),
 ):
     """Start real-time audio captioning."""
