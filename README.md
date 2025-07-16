@@ -2,11 +2,9 @@
 
 > Vibe with ClaudeCode
 
-A fully local and free real-time system audio captioning CLI tool for macOS using local transcription models.
-
 ## Overview
 
-Newear is a versatile, fully local and free audio transcription tool that provides both real-time system audio captioning and batch processing of video/audio files using local Whisper models. Perfect for:
+Newear is a versatile, fully local and free audio transcription tool that provides both real-time system audio captioning and batch processing of video/audio files using local AI models. Perfect for:
 
 - **Live captioning** of videos, meetings, or streaming audio content
 - **Video/audio file transcription** - process existing recordings, lectures, meetings
