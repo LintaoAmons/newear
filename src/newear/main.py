@@ -6,6 +6,7 @@ Newear CLI: Real-time system audio captioning tool
 import sys
 from pathlib import Path
 from typing import Optional
+from datetime import datetime
 
 import typer
 from rich.console import Console
@@ -30,8 +31,9 @@ console = Console()
 def main(
     device: Optional[int] = typer.Option(None, "--device", "-d", help="Audio device index (use --list-devices to see available)"),
     model: str = typer.Option("base", "--model", "-m", help="Whisper model size (tiny, base, small, medium, large)"),
-    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output file path for transcript"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output file path for transcript (default: newear-YYYYMMDD_HHMMSS.txt)"),
     timestamps: bool = typer.Option(False, "--timestamps", "-t", help="Include timestamps in output"),
+    show_confidence: bool = typer.Option(False, "--confidence", help="Show confidence scores in console output"),
     language: Optional[str] = typer.Option(None, "--language", "-l", help="Language code (auto-detect if not specified)"),
     sample_rate: int = typer.Option(16000, "--sample-rate", "-s", help="Audio sample rate in Hz"),
     chunk_duration: float = typer.Option(5.0, "--chunk-duration", "-c", help="Audio chunk duration in seconds (3-10s recommended for better accuracy)"),
@@ -44,6 +46,12 @@ def main(
         devices = AudioDevices()
         devices.list_devices()
         return
+    
+    # Set default output file if not specified
+    if output is None:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output = Path(f"newear-{timestamp}.txt")
+        console.print(f"[blue]No output file specified, using: {output}[/blue]")
     
     # Initialize configuration
     config = Config(
@@ -66,6 +74,10 @@ def main(
     # Initialize file writer
     file_writer = FileWriter(output, timestamps)
     
+    # Initialize continuous file writer for one-liner output
+    continuous_file = output.with_suffix('.continuous.txt')
+    continuous_writer = FileWriter(continuous_file, show_timestamps=False)
+    
     # Initialize transcriber
     try:
         transcriber = WhisperTranscriber(
@@ -87,16 +99,16 @@ def main(
     console.print(f"[blue]Chunk duration: {chunk_duration}s[/blue]")
     console.print(f"[blue]Language: {language or 'auto-detect'}[/blue]")
     
-    if output:
-        console.print(f"[blue]Output file: {output}[/blue]")
+    console.print(f"[blue]Output file: {output}[/blue]")
+    console.print(f"[blue]Continuous file: {output.with_suffix('.continuous.txt')}[/blue]")
     
     console.print("[yellow]Press Ctrl+C to stop[/yellow]")
     console.print("-" * 50)
     
     try:
-        # Open file for writing if specified
-        if output:
-            file_writer.open_file()
+        # Open files for writing (always enabled now)
+        file_writer.open_file()
+        continuous_writer.open_file()
             
         # Start audio capture
         if not audio_capture.start_capture():
@@ -112,31 +124,40 @@ def main(
             sample_rate=sample_rate
         ):
             if result and result.text.strip():
-                # Format the transcription with confidence
-                confidence_str = f" (confidence: {result.confidence:.2f})" if result.confidence > 0 else ""
-                message = f"{result.text.strip()}{confidence_str}"
+                text = result.text.strip()
                 
-                # Display with color coding based on confidence
-                if result.confidence > 0.8:
-                    console.print(f"[green]{message}[/green]")
-                elif result.confidence > 0.5:
-                    console.print(f"[yellow]{message}[/yellow]")
+                # Format console output based on show_confidence flag
+                if show_confidence:
+                    confidence_str = f" (confidence: {result.confidence:.2f})" if result.confidence > 0 else ""
+                    message = f"{text}{confidence_str}"
+                    
+                    # Display with color coding based on confidence
+                    if result.confidence > 0.8:
+                        console.print(f"[green]{message}[/green]")
+                    elif result.confidence > 0.5:
+                        console.print(f"[yellow]{message}[/yellow]")
+                    else:
+                        console.print(f"[red]{message}[/red]")
                 else:
-                    console.print(f"[red]{message}[/red]")
+                    # Just show the text without confidence
+                    console.print(text)
                 
-                # Write to file if enabled
-                if output:
-                    file_writer.write_entry(result.text.strip(), confidence=result.confidence)
+                # Write to timestamped file (always enabled now)
+                file_writer.write_entry(text, confidence=result.confidence)
+                
+                # Write to continuous file (one-liner, no line breaks)
+                continuous_writer.write_continuous(text)
         
     except KeyboardInterrupt:
         console.print("\n[yellow]Stopping Newear...[/yellow]")
         audio_capture.stop()
         transcriber.cleanup()
         file_writer.close_file()
+        continuous_writer.close_file()
         
-        if output:
-            stats = file_writer.get_stats()
-            console.print(f"[green]Written {stats['total_entries']} entries to {output}[/green]")
+        stats = file_writer.get_stats()
+        console.print(f"[green]Written {stats['total_entries']} entries to {output}[/green]")
+        console.print(f"[green]Continuous transcript saved to {output.with_suffix('.continuous.txt')}[/green]")
         
         # Show performance stats
         perf_stats = transcriber.get_performance_stats()
@@ -150,6 +171,7 @@ def main(
         audio_capture.stop()
         transcriber.cleanup()
         file_writer.close_file()
+        continuous_writer.close_file()
         sys.exit(1)
 
 

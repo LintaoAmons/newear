@@ -78,6 +78,13 @@ class FileWriter:
         # Always print to console
         print(formatted_entry.rstrip())
     
+    def write_continuous(self, text: str):
+        """Write text to continuous file without line breaks."""
+        if self.file_handle:
+            # Write with space separator, no newline
+            self.file_handle.write(f"{text} ")
+            self.file_handle.flush()
+    
     def write_json(self, output_file: Path):
         """Write transcript as JSON."""
         try:

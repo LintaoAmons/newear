@@ -95,7 +95,7 @@ You should see:
 ### Basic Usage
 
 ```bash
-# Start live captioning (uses 'base' model by default)
+# Start live captioning (auto-creates newear-YYYYMMDD_HHMMSS.txt files)
 newear
 
 # Use specific model size
@@ -103,11 +103,14 @@ newear --model tiny    # Fastest, lower accuracy
 newear --model base    # Balanced (default)
 newear --model small   # Better accuracy, slower
 
-# Save transcript to file
+# Save transcript to specific file (creates both transcript.txt and transcript.continuous.txt)
 newear --output transcript.txt
 
-# Show timestamps
-newear --timestamps
+# Show timestamps in output file
+newear --timestamps --output transcript.txt
+
+# Show confidence scores in console (hidden by default)
+newear --confidence --output transcript.txt
 ```
 
 ### Model Download
@@ -273,6 +276,41 @@ newear --chunk-duration 10.0 --model medium
 - **Shorter chunks** = Lower latency but reduced confidence
 - **Sweet spot** = 5-8 seconds for most use cases
 
+### Output Options
+
+**Console Output:**
+```bash
+# Default - Clean text only (no confidence scores)
+newear --output transcript.txt
+> Hello, this is a test transcription.
+> The audio quality is working well.
+
+# With confidence scores (opt-in)
+newear --confidence --output transcript.txt
+> Hello, this is a test transcription. (confidence: 0.95)
+> The audio quality is working well. (confidence: 0.87)
+```
+
+**File Output:**
+Newear always creates transcript files. When using `--output filename.txt`, it creates two files:
+
+1. **`filename.txt`** - Timestamped transcript (default format)
+   ```
+   [2024-07-16 15:30:15] Hello, this is a test transcription.
+   [2024-07-16 15:30:18] The audio quality is working well.
+   ```
+
+2. **`filename.continuous.txt`** - Continuous one-liner (no line breaks)
+   ```
+   Hello, this is a test transcription. The audio quality is working well. 
+   ```
+
+**Output Format Use Cases:**
+- **Timestamped file**: Meeting notes, analysis, debugging
+- **Continuous file**: Text processing, ML training, simple copy-paste
+- **Console output**: Real-time monitoring, clean display
+- **Confidence scores**: Quality assessment, debugging transcription issues
+
 ### Advanced Usage
 
 ```bash
@@ -282,9 +320,45 @@ newear --device 5
 # Set custom language (auto-detect by default)
 newear --language en
 
+# Show confidence scores in console output
+newear --confidence --output transcript.txt
+
+# Combine options for optimal accuracy
+newear --model small --chunk-duration 8.0 --confidence --output meeting.txt
+
 # Custom audio settings
 newear --sample-rate 44100 --chunk-duration 3.0
 ```
+
+### Output File Examples
+
+**Example 1: Default behavior (auto-named files)**
+```bash
+newear --model base
+```
+Creates:
+- `newear-20240716_153045.txt` - Timestamped entries for analysis
+- `newear-20240716_153045.continuous.txt` - One-liner for processing
+
+**Example 2: Custom filename**
+```bash
+newear --model base --output meeting.txt
+```
+Creates:
+- `meeting.txt` - Timestamped entries for analysis
+- `meeting.continuous.txt` - One-liner for processing
+
+**Example 3: With confidence scores for debugging**
+```bash
+newear --model base --confidence --output debug.txt
+```
+Shows confidence in console while still creating both files.
+
+**Example 4: High accuracy setup**
+```bash
+newear --model medium --chunk-duration 10.0 --language en --output presentation.txt
+```
+Optimized for maximum accuracy with longer chunks and specific language.
 
 ### Environment Variables
 
