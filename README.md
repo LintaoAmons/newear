@@ -24,7 +24,8 @@ Newear captures your system audio in real-time and provides live transcription u
 ### Prerequisites
 
 1. **Python 3.9+** (recommended: use pyenv or system Python)
-2. **Homebrew** for installing BlackHole
+2. **uv** - Fast Python package manager (`pip install uv` or `curl -LsSf https://astral.sh/uv/install.sh | sh`)
+3. **Homebrew** for installing BlackHole
 
 ### Step 1: Install BlackHole Virtual Audio Device
 
@@ -66,11 +67,14 @@ After installing BlackHole, you need to route your system audio through it:
 git clone https://github.com/yourusername/newear.git
 cd newear
 
-# Install in development mode
-pip install -e .
+# Create virtual environment using uv
+uv venv
 
-# Or install dependencies manually
-pip install -r requirements.txt
+# Activate virtual environment
+source .venv/bin/activate
+
+# Install in development mode
+uv pip install -e .
 ```
 
 ### Step 4: Test Audio Capture
@@ -227,18 +231,26 @@ Audio Capture → Chunking → Whisper Model → Text Output → File/Display
 
 ### Running Tests
 ```bash
+# Install dev dependencies
+uv pip install -e ".[dev]"
+
+# Run tests
 pytest tests/
 ```
 
 ### Code Formatting
 ```bash
+# Install dev dependencies if not already installed
+uv pip install -e ".[dev]"
+
+# Format code
 black src/
 isort src/
 ```
 
 ### Building
 ```bash
-pip install build
+uv pip install build
 python -m build
 ```
 
