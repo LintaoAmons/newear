@@ -8,7 +8,7 @@ import time
 from typing import Optional, Callable, Generator
 from dataclasses import dataclass
 
-from .devices import AudioDevice, AudioDeviceManager
+from .devices import AudioDevice, AudioDevices
 
 
 @dataclass
@@ -24,14 +24,28 @@ class AudioConfig:
 class AudioCapture:
     """Handles real-time audio capture from macOS system audio."""
     
-    def __init__(self, config: AudioConfig = None):
-        self.config = config or AudioConfig()
-        self.device_manager = AudioDeviceManager()
+    def __init__(self, config):
+        # Convert from Config to AudioConfig
+        if hasattr(config, 'sample_rate'):
+            self.config = AudioConfig(
+                sample_rate=config.sample_rate,
+                channels=1,
+                chunk_duration=config.chunk_duration,
+                buffer_size=4096,
+                dtype='float32'
+            )
+        else:
+            self.config = config or AudioConfig()
+        self.device_manager = AudioDevices()
         self.device: Optional[AudioDevice] = None
         self.stream: Optional[sd.InputStream] = None
         self.audio_queue = queue.Queue()
         self.is_capturing = False
         self._capture_thread: Optional[threading.Thread] = None
+        
+        # Setup device from config
+        device_index = getattr(config, 'device_index', None)
+        self.setup_device(device_index)
         
     def setup_device(self, device_index: Optional[int] = None) -> bool:
         """Setup audio device for capture."""
@@ -109,6 +123,26 @@ class AudioCapture:
             self.stream = None
         
         print("Audio capture stopped")
+    
+    def start(self):
+        """Start audio capture and begin processing."""
+        if not self.start_capture():
+            raise RuntimeError("Failed to start audio capture")
+        
+        # For now, just do basic audio monitoring
+        try:
+            for chunk in self.get_audio_chunks():
+                if chunk is not None:
+                    rms = np.sqrt(np.mean(chunk ** 2))
+                    if rms > 0.001:  # Only show when there's actual audio
+                        print(f"Audio detected: RMS = {rms:.6f}")
+        except KeyboardInterrupt:
+            self.stop_capture()
+            raise
+    
+    def stop(self):
+        """Stop audio capture."""
+        self.stop_capture()
     
     def get_audio_chunk(self, timeout: float = 1.0) -> Optional[np.ndarray]:
         """Get a single audio chunk from the queue."""

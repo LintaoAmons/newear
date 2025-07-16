@@ -1,6 +1,6 @@
 """Audio capture module for macOS system audio."""
 
 from .capture import AudioCapture
-from .devices import AudioDeviceManager
+from .devices import AudioDevices
 
-__all__ = ["AudioCapture", "AudioDeviceManager"]
+__all__ = ["AudioCapture", "AudioDevices"]

@@ -47,7 +47,7 @@ dev = [
 ]
 
 [project.scripts]
-newear = "newear.main:main"
+newear = "newear.main:cli"
 
 [project.urls]
 Homepage = "https://github.com/yourusername/newear"

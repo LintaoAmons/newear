@@ -1,7 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(uv pip install:*)",
+      "Bash(uv venv:*)",
+      "Bash(source:*)",
+      "Bash(git add:*)",
+      "Bash(newear:*)",
+      "Bash(timeout:*)",
+      "Bash(gtimeout:*)",
+      "Bash(python:*)"
     ],
     "deny": []
   }

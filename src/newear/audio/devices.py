@@ -16,7 +16,7 @@ class AudioDevice:
     hostapi: int
 
 
-class AudioDeviceManager:
+class AudioDevices:
     """Manages audio devices for macOS system audio capture."""
     
     def __init__(self):
@@ -74,8 +74,8 @@ class AudioDeviceManager:
             pass
         return None
     
-    def print_devices(self) -> None:
-        """Print all available audio devices."""
+    def list_devices(self) -> None:
+        """List all available audio devices."""
         print("Available Audio Devices:")
         print("-" * 50)
         

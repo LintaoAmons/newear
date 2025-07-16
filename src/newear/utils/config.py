@@ -21,12 +21,26 @@ class Config:
     language: Optional[str] = None  # Auto-detect if None
     
     # Output settings
-    output_file: Optional[str] = None
+    output_file: Optional[Path] = None
     show_timestamps: bool = True
     save_audio: bool = False
     
     # Device settings
     device_index: Optional[int] = None
+    
+    def __init__(self, device_index=None, model_size="base", output_file=None, 
+                 show_timestamps=False, language=None, sample_rate=16000, 
+                 chunk_duration=3.0, channels=1, buffer_size=4096, save_audio=False):
+        self.device_index = device_index
+        self.model_size = model_size
+        self.output_file = output_file
+        self.show_timestamps = show_timestamps
+        self.language = language
+        self.sample_rate = sample_rate
+        self.chunk_duration = chunk_duration
+        self.channels = channels
+        self.buffer_size = buffer_size
+        self.save_audio = save_audio
     
     @classmethod
     def from_env(cls) -> "Config":
