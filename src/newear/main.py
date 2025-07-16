@@ -15,6 +15,7 @@ from newear.audio.capture import AudioCapture
 from newear.audio.devices import AudioDevices
 from newear.output.file_writer import FileWriter
 from newear.utils.config import Config
+from newear.transcription.whisper_local import WhisperTranscriber
 
 app = typer.Typer(
     name="newear",
@@ -65,12 +66,26 @@ def main(
     # Initialize file writer
     file_writer = FileWriter(output, timestamps)
     
+    # Initialize transcriber
+    try:
+        transcriber = WhisperTranscriber(
+            model_size=model,
+            language=language,
+            device="cpu",  # Use CPU for better compatibility
+            compute_type="int8"  # Optimized for speed
+        )
+        console.print(f"[blue]Initializing Whisper model: {model}[/blue]")
+    except Exception as e:
+        console.print(f"[red]Error initializing transcriber: {e}[/red]")
+        sys.exit(1)
+    
     # Start captioning
     console.print("[green]Starting Newear audio captioning...[/green]")
     console.print(f"[blue]Model: {model}[/blue]")
     console.print(f"[blue]Device: {device or 'auto-detect'}[/blue]")
     console.print(f"[blue]Sample rate: {sample_rate}Hz[/blue]")
     console.print(f"[blue]Chunk duration: {chunk_duration}s[/blue]")
+    console.print(f"[blue]Language: {language or 'auto-detect'}[/blue]")
     
     if output:
         console.print(f"[blue]Output file: {output}[/blue]")
@@ -83,38 +98,57 @@ def main(
         if output:
             file_writer.open_file()
             
-        # For now, just start basic audio capture with file output
+        # Start audio capture
         if not audio_capture.start_capture():
             console.print("[red]Failed to start audio capture[/red]")
             sys.exit(1)
             
-        # Basic audio monitoring with file output
-        console.print("[green]Audio capture started. Monitoring audio levels...[/green]")
+        # Start real-time transcription
+        console.print("[green]Audio capture started. Beginning transcription...[/green]")
         
-        for chunk in audio_capture.get_audio_chunks():
-            if chunk is not None:
-                rms = float(chunk.var()) ** 0.5  # RMS calculation
-                if rms > 0.001:  # Only show when there's actual audio
-                    message = f"Audio detected: RMS = {rms:.6f}"
-                    console.print(f"[dim]{message}[/dim]")
-                    
-                    # Write to file if enabled
-                    if output:
-                        file_writer.write_entry(message)
+        # Use the transcriber's streaming method for real-time processing
+        for result in transcriber.transcribe_chunk_stream(
+            audio_capture.get_audio_chunks(),
+            sample_rate=sample_rate
+        ):
+            if result and result.text.strip():
+                # Format the transcription with confidence
+                confidence_str = f" (confidence: {result.confidence:.2f})" if result.confidence > 0 else ""
+                message = f"{result.text.strip()}{confidence_str}"
+                
+                # Display with color coding based on confidence
+                if result.confidence > 0.8:
+                    console.print(f"[green]{message}[/green]")
+                elif result.confidence > 0.5:
+                    console.print(f"[yellow]{message}[/yellow]")
+                else:
+                    console.print(f"[red]{message}[/red]")
+                
+                # Write to file if enabled
+                if output:
+                    file_writer.write_entry(result.text.strip(), confidence=result.confidence)
         
     except KeyboardInterrupt:
         console.print("\n[yellow]Stopping Newear...[/yellow]")
         audio_capture.stop()
+        transcriber.cleanup()
         file_writer.close_file()
         
         if output:
             stats = file_writer.get_stats()
             console.print(f"[green]Written {stats['total_entries']} entries to {output}[/green]")
         
+        # Show performance stats
+        perf_stats = transcriber.get_performance_stats()
+        if perf_stats['total_transcriptions'] > 0:
+            console.print(f"[blue]Transcribed {perf_stats['total_transcriptions']} chunks[/blue]")
+            console.print(f"[blue]Average transcription time: {perf_stats['avg_transcription_time']:.2f}s[/blue]")
+        
         console.print("[green]Goodbye![/green]")
     except Exception as e:
         console.print(f"[red]Error during captioning: {e}[/red]")
         audio_capture.stop()
+        transcriber.cleanup()
         file_writer.close_file()
         sys.exit(1)
 
