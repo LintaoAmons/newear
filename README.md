@@ -30,11 +30,22 @@ Newear is a versatile, fully local and free audio transcription tool that provid
 ### Prerequisites
 
 1. **Python 3.9+** (recommended: use pyenv or system Python)
-2. **uv** - Fast Python package manager (`pip install uv` or `curl -LsSf https://astral.sh/uv/install.sh | sh`)
+2. **Package Manager** - Choose one of the following:
+   - **uv** (recommended) - Fast Python package manager
+   - **pip** - Standard Python package manager
+   - **conda/mamba** - Anaconda/Miniconda package manager
+   - **poetry** - Modern dependency management
 
 ### Install Newear
 
+#### Using uv (Recommended - Fastest)
+
 ```bash
+# Install uv if not already installed
+pip install uv
+# or
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
 # Clone the repository
 git clone https://github.com/yourusername/newear.git
 cd newear
@@ -43,12 +54,104 @@ cd newear
 uv venv
 
 # Activate virtual environment
-source .venv/bin/activate
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install in development mode
 uv pip install -e .
 ```
 
+<details>
+<summary>Alternative Installation Methods</summary>
+
+#### Using pip (Standard)
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/newear.git
+cd newear
+
+# Create virtual environment
+python -m venv .venv
+
+# Activate virtual environment
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Upgrade pip
+pip install --upgrade pip
+
+# Install in development mode
+pip install -e .
+```
+
+#### Using conda/mamba
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/newear.git
+cd newear
+
+# Create conda environment
+conda create -n newear python=3.11
+conda activate newear
+
+# Install dependencies
+pip install -e .
+
+# Alternative: Create environment from file (if available)
+# conda env create -f environment.yml
+# conda activate newear
+```
+
+#### Using poetry
+
+```bash
+# Install poetry if not already installed
+curl -sSL https://install.python-poetry.org | python3 -
+
+# Clone the repository
+git clone https://github.com/yourusername/newear.git
+cd newear
+
+# Install dependencies and create virtual environment
+poetry install
+
+# Activate virtual environment
+poetry shell
+
+# Or run commands directly
+poetry run newear --help
+```
+
+#### System-wide installation (Not recommended for development)
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/newear.git
+cd newear
+
+# Install system-wide (requires admin/sudo)
+pip install -e .
+
+# Or install from PyPI (when available)
+# pip install newear
+```
+
+</details>
+
+### Verify Installation
+
+After installation with any method, verify that Newear is working:
+
+```bash
+# Check if newear command is available
+newear --help
+
+# Test basic functionality
+newear --version
+
+# List available models
+newear --list-models
+```
 
 ## Usage
 
